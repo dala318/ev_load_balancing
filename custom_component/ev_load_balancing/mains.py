@@ -17,15 +17,22 @@ _LOGGER = logging.getLogger(__name__)
 class Mains(ABC):
     """Base class for Mains extractor."""
 
-    _last_event_timestamp: datetime = None
-
-    def __init__(self, hass: HomeAssistant) -> None:
+    def __init__(self, hass: HomeAssistant, update_callback) -> None:
         """Initialize base class."""
         self._hass = hass
+        self._update_callback = update_callback
 
     @abstractmethod
     def current_phase1(self) -> float | None:
         """Get phase 1 current."""
+
+    @abstractmethod
+    def current_phase2(self) -> float | None:
+        """Get phase 2 current."""
+
+    @abstractmethod
+    def current_phase3(self) -> float | None:
+        """Get phase 3 current."""
 
     @abstractmethod
     def cleanup(self) -> None:
@@ -33,12 +40,8 @@ class Mains(ABC):
 
     async def _async_input_changed(self, event):
         """Input entity change callback from state change event."""
-        if not self._last_event_timestamp or (
-            event.time_fired - self._last_event_timestamp
-        ) > timedelta(seconds=1):
-            self._last_event_timestamp = event.time_fired
-            _LOGGER.debug("Sensor change event from HASS: %s", event)
-            # self.update()
+        # _LOGGER.debug("Sensor change event from HASS: %s", event)
+        await self._update_callback()
 
     def _get_sensor_entity_value(self, entity_id: str) -> float | None:
         """Get value of generic entity parameter."""
@@ -46,10 +49,7 @@ class Mains(ABC):
             try:
                 entity = self._hass.states.get(entity_id)
                 state = entity.state
-                value = float(state)
-                # if integer:
-                #     return int(value)
-                return value  # noqa: RET504, TRY300
+                return float(state)
             except (TypeError, ValueError):
                 _LOGGER.warning(
                     'Could not convert value "%s" of entity %s to expected format',
@@ -72,9 +72,9 @@ class MainsSlimmelezer(Mains):
 
     _state_change_listeners = []
 
-    def __init__(self, hass: HomeAssistant, device_id: str) -> None:
+    def __init__(self, hass: HomeAssistant, update_callback, device_id: str) -> None:
         """Initilalize Slimmelezer extractor."""
-        super().__init__(hass)
+        super().__init__(hass, update_callback)
         self._id = device_id
 
         entities = device_entities(hass, device_id)
@@ -118,6 +118,18 @@ class MainsSlimmelezer(Mains):
         """Get phase 1 current."""
         current = self._get_sensor_entity_value(self._ent_phase1)
         _LOGGER.debug("Returning current %f for phase 1", current)
+        return current
+
+    def current_phase2(self) -> float | None:
+        """Get phase 2 current."""
+        current = self._get_sensor_entity_value(self._ent_phase2)
+        _LOGGER.debug("Returning current %f for phase 2", current)
+        return current
+
+    def current_phase3(self) -> float | None:
+        """Get phase 3 current."""
+        current = self._get_sensor_entity_value(self._ent_phase3)
+        _LOGGER.debug("Returning current %f for phase 3", current)
         return current
 
     def cleanup(self):

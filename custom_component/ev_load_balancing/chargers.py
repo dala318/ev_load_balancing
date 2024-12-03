@@ -16,13 +16,18 @@ _LOGGER = logging.getLogger(__name__)
 class Charger(ABC):
     """Base class for Charger robot."""
 
-    # def __init__(self) -> None:
-    #     """Initialize base class."""
-    #     pass
+    def __init__(self, hass: HomeAssistant, update_callback) -> None:
+        """Initialize base class."""
+        self._hass = hass
+        self._update_callback = update_callback
 
     @abstractmethod
     def set_limits(self, phase1: float, phase2: float, phase3: float) -> bool:
         """Set charger limits."""
+
+    @abstractmethod
+    def is_charging_active(self) -> bool:
+        """Return if charging is active."""
 
     @abstractmethod
     def cleanup(self) -> None:
@@ -30,9 +35,8 @@ class Charger(ABC):
 
     async def _async_input_changed(self, event):
         """Input entity change callback from state change event."""
-        # new_state = event.data.get("new_state")
         _LOGGER.debug("Sensor change event from HASS: %s", event)
-        # self.update()
+        await self._update_callback()
 
 
 class ChargerEasee(Charger):
@@ -40,9 +44,9 @@ class ChargerEasee(Charger):
 
     _state_change_listeners = []
 
-    def __init__(self, hass: HomeAssistant, device_id: str) -> None:
+    def __init__(self, hass: HomeAssistant, update_callback, device_id: str) -> None:
         """Initilalize Slimmelezer extractor."""
-        self._hass = hass
+        super().__init__(hass, update_callback)
         self._id = device_id
 
         entities = device_entities(hass, device_id)
@@ -87,3 +91,7 @@ class ChargerEasee(Charger):
         """Cleanup by removing event listeners."""
         for listner in self._state_change_listeners:
             listner()
+
+    def is_charging_active(self) -> bool:
+        """Return if charging is active."""
+        return self._hass.states.get(self._ent_status).state == "charging"

@@ -7,12 +7,11 @@ from __future__ import annotations
 # from datetime import datetime, timedelta
 import logging
 
-from homeassistant.config_entries import SOURCE_IMPORT, ConfigEntry
+from homeassistant.config_entries import SOURCE_IMPORT, ConfigEntry, Debouncer
 from homeassistant.const import CONF_API_KEY, CONF_NAME, CONF_URL, Platform
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
-
 from .const import DOMAIN
 from . import chargers, mains
 
@@ -75,15 +74,27 @@ class EvLoadBalancingCoordinator(DataUpdateCoordinator):
             _LOGGER,
             name=config_entry.data.get(CONF_NAME),
             # update_interval=timedelta(seconds=20),
-            update_method=self._async_update_data,
+            update_method=self._async_update_method,
+            request_refresh_debouncer=Debouncer(
+                hass,
+                _LOGGER,
+                cooldown=1,
+                immediate=False,
+                # function=self.async_refresh,
+            ),
             # always_update=True,
         )
 
         # Mains currents
-        self._mains = mains.MainsSlimmelezer(hass, "6b332da8a66c649c42f284a079a8bcaa")
+        self._mains = mains.MainsSlimmelezer(
+            hass, self.async_request_refresh, "6b332da8a66c649c42f284a079a8bcaa"
+        )
+        # self.async_add_listener()
 
         # Charger
-        self._charger = chargers.ChargerEasee(hass, "308b36c34ff3cd9766f693be289a8f3b")
+        self._charger = chargers.ChargerEasee(
+            hass, self.async_request_refresh, "308b36c34ff3cd9766f693be289a8f3b"
+        )
 
         pass
 
@@ -101,11 +112,16 @@ class EvLoadBalancingCoordinator(DataUpdateCoordinator):
         )
 
     async def async_config_entry_first_refresh(self):
+        """Refresh data on setup."""
         pass
 
-    async def _async_update_data(self):
+    async def _async_update_method(self):
         """Update call function."""
-        _LOGGER.debug("Updating service")
+        _LOGGER.info("Updating service")
         phase1 = self._mains.current_phase1()
+        phase2 = self._mains.current_phase2()
+        phase3 = self._mains.current_phase3()
+
+        chargerging_active = self._charger.is_charging_active()
 
         pass
