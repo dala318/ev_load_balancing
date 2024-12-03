@@ -2,9 +2,6 @@
 
 from __future__ import annotations
 
-# from abc import ABC, abstractmethod
-# from collections.abc import Awaitable, Callable, Coroutine
-# from datetime import datetime, timedelta
 import logging
 
 from homeassistant.config_entries import SOURCE_IMPORT, ConfigEntry, Debouncer
@@ -12,8 +9,9 @@ from homeassistant.const import CONF_API_KEY, CONF_NAME, CONF_URL, Platform
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
-from .const import DOMAIN
+
 from . import chargers, mains
+from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -96,8 +94,6 @@ class EvLoadBalancingCoordinator(DataUpdateCoordinator):
             hass, self.async_request_refresh, "308b36c34ff3cd9766f693be289a8f3b"
         )
 
-        pass
-
     def cleanup(self) -> None:
         """Cleanup any pending event listers etc."""
         self._mains.cleanup()
@@ -122,6 +118,6 @@ class EvLoadBalancingCoordinator(DataUpdateCoordinator):
         phase2 = self._mains.current_phase2()
         phase3 = self._mains.current_phase3()
 
-        chargerging_active = self._charger.is_charging_active()
+        charging_active = self._charger.is_charging_active()
 
         pass
