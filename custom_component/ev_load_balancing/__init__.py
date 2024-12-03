@@ -4,7 +4,7 @@ from __future__ import annotations
 
 # from abc import ABC, abstractmethod
 # from collections.abc import Awaitable, Callable, Coroutine
-from datetime import datetime, timedelta
+# from datetime import datetime, timedelta
 import logging
 
 from homeassistant.config_entries import SOURCE_IMPORT, ConfigEntry
@@ -14,8 +14,7 @@ from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
 from .const import DOMAIN
-from .mains import *
-from .chargers import *
+from . import chargers, mains
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -49,9 +48,11 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unloading a config_flow entry."""
     # unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
-    # if unload_ok:
-    #     hass.data[DOMAIN].pop(entry.entry_id)
-    # return unload_ok
+    unload_ok = True
+    if unload_ok:
+        coordinator = hass.data[DOMAIN].pop(entry.entry_id)
+        coordinator.cleanup()
+    return unload_ok
 
 
 async def async_reload_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> None:
@@ -60,18 +61,36 @@ async def async_reload_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> 
     await async_setup_entry(hass, config_entry)
 
 
-class EvLoadBalancingCoordinator:
-    """coordinator base class."""
+class EvLoadBalancingCoordinator(DataUpdateCoordinator):
+    """Coordinator base class."""
+
+    _mains: mains.Mains
+    _charger: chargers.Charger
 
     def __init__(self, hass: HomeAssistant, config_entry: ConfigEntry) -> None:
         """Initialize my coordinator."""
         self._hass = hass
+        super().__init__(
+            hass,
+            _LOGGER,
+            name=config_entry.data.get(CONF_NAME),
+            # update_interval=timedelta(seconds=20),
+            update_method=self._async_update_data,
+            # always_update=True,
+        )
 
         # Mains currents
-        self._input_phase1 = ""
+        self._mains = mains.MainsSlimmelezer(hass, "6b332da8a66c649c42f284a079a8bcaa")
 
-        # Limits
-        self._limit_phase1 = ""
+        # Charger
+        self._charger = chargers.ChargerEasee(hass, "308b36c34ff3cd9766f693be289a8f3b")
+
+        pass
+
+    def cleanup(self) -> None:
+        """Cleanup any pending event listers etc."""
+        self._mains.cleanup()
+        self._charger.cleanup()
 
     def get_device_info(self) -> DeviceInfo:
         """Get device info to group entities."""
@@ -81,6 +100,12 @@ class EvLoadBalancingCoordinator:
             entry_type=DeviceEntryType.SERVICE,
         )
 
+    async def async_config_entry_first_refresh(self):
+        pass
+
     async def _async_update_data(self):
         """Update call function."""
         _LOGGER.debug("Updating service")
+        phase1 = self._mains.current_phase1()
+
+        pass
