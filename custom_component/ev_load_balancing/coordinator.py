@@ -10,7 +10,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
-from .chargers import Charger
+from .chargers import Charger, ChargingState
 from .chargers.easee import ChargerEasee
 from .mains import Mains
 from .mains.slimmelezer import MainsSlimmelezer
@@ -88,7 +88,7 @@ class EvLoadBalancingCoordinator(DataUpdateCoordinator):
         # actual_phase2 = self._mains.current_phase2()
         # actual_phase3 = self._mains.current_phase3()
 
-        charging_active = self._charger.is_charging_active()
+        charging_state = self._charger.charging_state()
         limits = []
         limits.append(self._charger.limit_phase1())
         limits.append(self._charger.limit_phase2())
@@ -99,6 +99,10 @@ class EvLoadBalancingCoordinator(DataUpdateCoordinator):
         limit_circuit = self._charger.limit_circuit()
 
         mapping = {0: 1, 1: 2, 2: 0}
+
+        if charging_state == ChargingState.OFF:
+            _LOGGER.debug("Skipping update since no charging active or pending")
+            return
 
         new_limits = []
         for a_index, l_index in mapping.items():

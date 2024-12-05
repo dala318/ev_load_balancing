@@ -7,7 +7,7 @@ from homeassistant.helpers.event import async_track_state_change_event
 from homeassistant.helpers.template import device_entities
 
 # from .const import DOMAIN
-from . import Charger
+from . import Charger, ChargingState
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -56,12 +56,13 @@ class ChargerEasee(Charger):
         for listner in self._state_change_listeners:
             listner()
 
-    def is_charging_active(self) -> bool:
-        """Return if charging is active."""
-        return self._hass.states.get(self._ent_status).state in [
-            "charging",
-            "awaiting_start",
-        ]
+    def charging_state(self) -> ChargingState:
+        """Return if charging state."""
+        if self._hass.states.get(self._ent_status).state in ["charging"]:
+            return ChargingState.CHARGING
+        if self._hass.states.get(self._ent_status).state in ["awaiting_start"]:
+            return ChargingState.PENDING
+        return ChargingState.OFF
 
     def limit_phase1(self) -> float:
         """Get current limit of phase 1."""

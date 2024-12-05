@@ -3,9 +3,16 @@
 from abc import ABC, abstractmethod
 import logging
 
+from homeassistant.config_entries import Enum
 from homeassistant.core import HomeAssistant
 
 _LOGGER = logging.getLogger(__name__)
+
+
+class ChargingState(Enum):
+    OFF = 0
+    PENDING = 1
+    CHARGING = 2
 
 
 # class ChargerPhase(ABC):
@@ -32,8 +39,8 @@ class Charger(ABC):
         """Set charger limits."""
 
     @abstractmethod
-    def is_charging_active(self) -> bool:
-        """Return if charging is active."""
+    def charging_state(self) -> ChargingState:
+        """Return charging state."""
 
     @abstractmethod
     def cleanup(self) -> None:
