@@ -10,9 +10,9 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
-from .chargers import Charger, ChargingState
+from .chargers import Charger, ChargerPhase, ChargingState
 from .chargers.easee import ChargerEasee
-from .mains import Mains
+from .mains import Mains, MainsPhase
 from .mains.slimmelezer import MainsSlimmelezer
 
 _LOGGER = logging.getLogger(__name__)
@@ -20,6 +20,22 @@ _LOGGER = logging.getLogger(__name__)
 
 class PhasePair:
     """Data analyzer per one phase."""
+
+    def __init__(self, mains: MainsPhase, charger: ChargerPhase) -> None:
+        """Pair of Charger and Mains phases."""
+        self._mains = mains
+        self._charger = charger
+
+    def get_new_limit(self) -> float | None:
+        main_actual = self._mains.actual_current()
+        main_limit = 20
+        charger_limit = self._charger.current_limit()
+        charger_rating = 16
+        if main_actual is None or charger_limit is None:
+            _LOGGER.debug("Skipping update since None value found")
+            return None
+        spare = main_limit - main_actual
+        return min(charger_limit + spare, charger_rating, main_limit)
 
 
 class EvLoadBalancingCoordinator(DataUpdateCoordinator):
@@ -59,6 +75,13 @@ class EvLoadBalancingCoordinator(DataUpdateCoordinator):
             hass, self.async_request_refresh, "308b36c34ff3cd9766f693be289a8f3b"
         )
 
+        # mapping = {0: 1, 1: 2, 2: 0}
+        self._pairs = [
+            PhasePair(self._mains.phase1, self._charger.phase1),
+            PhasePair(self._mains.phase3, self._charger.phase2),
+            PhasePair(self._mains.phase3, self._charger.phase2),
+        ]
+
     def cleanup(self) -> None:
         """Cleanup any pending event listers etc."""
         self._mains.cleanup()
@@ -80,38 +103,12 @@ class EvLoadBalancingCoordinator(DataUpdateCoordinator):
         """Update call function."""
         _LOGGER.info("Updating service")
 
-        actuals = []
-        actuals.append(self._mains.current_phase1())
-        actuals.append(self._mains.current_phase2())
-        actuals.append(self._mains.current_phase3())
-        # actual_phase1 = self._mains.current_phase1()
-        # actual_phase2 = self._mains.current_phase2()
-        # actual_phase3 = self._mains.current_phase3()
-
-        charging_state = self._charger.charging_state()
-        limits = []
-        limits.append(self._charger.limit_phase1())
-        limits.append(self._charger.limit_phase2())
-        limits.append(self._charger.limit_phase3())
-        # limit_phase1 = self._charger.limit_phase1()
-        # limit_phase2 = self._charger.limit_phase2()
-        # limit_phase3 = self._charger.limit_phase3()
-        limit_circuit = self._charger.limit_circuit()
-
-        mapping = {0: 1, 1: 2, 2: 0}
-
-        if charging_state == ChargingState.OFF:
+        if self._charger.charging_state == ChargingState.OFF:
             _LOGGER.debug("Skipping update since no charging active or pending")
             return
 
-        new_limits = []
-        for a_index, l_index in mapping.items():
-            if actuals[a_index] is None or limits[l_index] is None:
-                _LOGGER.debug("Skipping update since None value found")
-                return
-            spare = self._max_load - actuals[a_index]
-            new = min(limits[l_index] + spare, self._max_load, limit_circuit)
-            # new = min(new, limit_circuit)
-            new_limits.append(new)
+        for pair in self._pairs:
+            new_limit = pair.get_new_limit()
+            _LOGGER.debug("Calculated new circuit limit %f", new_limit)
 
         pass

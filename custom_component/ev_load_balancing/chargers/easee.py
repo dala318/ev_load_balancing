@@ -6,10 +6,29 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.event import async_track_state_change_event
 from homeassistant.helpers.template import device_entities
 
-# from .const import DOMAIN
-from . import Charger, ChargingState
+from ..helpers.entity_value import get_sensor_entity_attribute_value
+from . import Charger, ChargerPhase, ChargingState
 
 _LOGGER = logging.getLogger(__name__)
+
+
+class ChargerPhaseEasee(ChargerPhase):
+    """A data class for a charger phase."""
+
+    def __init__(self, hass: HomeAssistant, entity_id: str, attribute: str) -> None:
+        """Initialize object."""
+        self._hass = hass
+        self._entity = entity_id
+        self._attribute = attribute
+
+    def current_limit(self) -> float:
+        """Get set current limit on phase."""
+        return get_sensor_entity_attribute_value(
+            self._hass,
+            _LOGGER,
+            self._entity,
+            self._attribute,
+        )
 
 
 class ChargerEasee(Charger):
@@ -44,6 +63,16 @@ class ChargerEasee(Charger):
             )
         )
 
+        self._phase1 = ChargerPhaseEasee(
+            self._hass, self._ent_circuit_limit, "state_dynamicCircuitCurrentP1"
+        )
+        self._phase2 = ChargerPhaseEasee(
+            self._hass, self._ent_circuit_limit, "state_dynamicCircuitCurrentP2"
+        )
+        self._phase3 = ChargerPhaseEasee(
+            self._hass, self._ent_circuit_limit, "state_dynamicCircuitCurrentP3"
+        )
+
     def set_limits(self, phase1: float, phase2: float, phase3: float) -> bool:
         """Set charger limits."""
         _LOGGER.debug(
@@ -56,6 +85,7 @@ class ChargerEasee(Charger):
         for listner in self._state_change_listeners:
             listner()
 
+    @property
     def charging_state(self) -> ChargingState:
         """Return if charging state."""
         if self._hass.states.get(self._ent_status).state in ["charging"]:
@@ -64,34 +94,27 @@ class ChargerEasee(Charger):
             return ChargingState.PENDING
         return ChargingState.OFF
 
-    def limit_phase1(self) -> float:
-        """Get current limit of phase 1."""
-        limit = self._get_sensor_entity_attribute_value(
-            self._ent_circuit_limit, "state_dynamicCircuitCurrentP1"
-        )
-        _LOGGER.debug("Returning limit %f for phase 1", limit)
-        return limit
+    @property
+    def phase1(self) -> ChargerPhase:
+        """Get phase 1 data."""
+        return self._phase1
 
-    def limit_phase2(self) -> float:
-        """Get current limit of phase 2."""
-        limit = self._get_sensor_entity_attribute_value(
-            self._ent_circuit_limit, "state_dynamicCircuitCurrentP2"
-        )
-        _LOGGER.debug("Returning limit %f for phase 2", limit)
-        return limit
+    @property
+    def phase2(self) -> ChargerPhase:
+        """Get phase 2 data."""
+        return self._phase2
 
-    def limit_phase3(self) -> float:
-        """Get current limit of phase 3."""
-        limit = self._get_sensor_entity_attribute_value(
-            self._ent_circuit_limit, "state_dynamicCircuitCurrentP3"
-        )
-        _LOGGER.debug("Returning limit %f for phase 3", limit)
-        return limit
+    @property
+    def phase3(self) -> ChargerPhase:
+        """Get phase 3 data."""
+        return self._phase3
 
+    @property
     def limit_circuit(self) -> float:
         """Return overall limit per phase on charger circuit."""
-        limit = self._get_sensor_entity_attribute_value(
-            self._ent_circuit_limit, "circuit_ratedCurrent"
+        # limit = self._get_sensor_entity_attribute_value(
+        limit = get_sensor_entity_attribute_value(
+            self._hass, _LOGGER, self._ent_circuit_limit, "circuit_ratedCurrent"
         )
         _LOGGER.debug("Returning limit %f for phase 3", limit)
         return limit

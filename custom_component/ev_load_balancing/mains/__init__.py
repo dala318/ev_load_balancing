@@ -22,6 +22,21 @@ class SensorValue:
         self.timestamp = timestamp
 
 
+class MainsPhase(ABC):
+    """A data class for a mains phase."""
+
+    # def __init__(self) -> None:
+    #     """Initialize object."""
+
+    @abstractmethod
+    def actual_current(self) -> float:
+        """Get actual current on phase."""
+
+    @abstractmethod
+    def stddev_current(self) -> float:
+        """Get standard deviation of current on phase."""
+
+
 class Mains(ABC):
     """Base class for Mains extractor."""
 
@@ -34,17 +49,20 @@ class Mains(ABC):
         self._hass = hass
         self._update_callback = update_callback
 
+    @property
     @abstractmethod
-    def current_phase1(self) -> float | None:
-        """Get phase 1 current."""
+    def phase1(self) -> MainsPhase:
+        """Return phase 1 data."""
 
+    @property
     @abstractmethod
-    def current_phase2(self) -> float | None:
-        """Get phase 2 current."""
+    def phase2(self) -> MainsPhase:
+        """Return phase 2 data."""
 
+    @property
     @abstractmethod
-    def current_phase3(self) -> float | None:
-        """Get phase 3 current."""
+    def phase3(self) -> MainsPhase:
+        """Return phase 3 data."""
 
     @abstractmethod
     def cleanup(self) -> None:
@@ -54,26 +72,3 @@ class Mains(ABC):
         """Input entity change callback from state change event."""
         # _LOGGER.debug("Sensor change event from HASS: %s", event)
         await self._update_callback()
-
-    def _get_sensor_entity_value(self, entity_id: str) -> SensorValue | None:
-        """Get value of generic entity parameter."""
-        if entity_id:
-            try:
-                entity = self._hass.states.get(entity_id)
-                return SensorValue(float(entity.state), entity.last_reported)
-                # return float(entity.state)
-            except (TypeError, ValueError):
-                _LOGGER.warning(
-                    'Could not convert value "%s" of entity %s to expected format',
-                    entity.state,
-                    entity_id,
-                )
-            except Exception as e:  # noqa: BLE001
-                _LOGGER.error(
-                    'Unknown error when reading and converting "%s": %s',
-                    entity_id,
-                    e,
-                )
-        else:
-            _LOGGER.debug("No entity defined")
-        return None

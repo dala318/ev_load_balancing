@@ -10,20 +10,22 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class ChargingState(Enum):
+    """State of charger."""
+
     OFF = 0
     PENDING = 1
     CHARGING = 2
 
 
-# class ChargerPhase(ABC):
-#     """A data class for a charger phase."""
+class ChargerPhase(ABC):
+    """A data class for a charger phase."""
 
-#     def __init__(self) -> None:
-#         """Initialize object."""
+    # def __init__(self) -> None:
+    #     """Initialize object."""
 
-#     def current_limit(self) -> float:
-#         """Get set current limit on phase."""
-#         return 1.0
+    @abstractmethod
+    def current_limit(self) -> float:
+        """Get set current limit on phase."""
 
 
 class Charger(ABC):
@@ -39,25 +41,30 @@ class Charger(ABC):
         """Set charger limits."""
 
     @abstractmethod
-    def charging_state(self) -> ChargingState:
-        """Return charging state."""
-
-    @abstractmethod
     def cleanup(self) -> None:
         """Cleanup event listners etc."""
 
+    @property
     @abstractmethod
-    def limit_phase1(self) -> float:
-        """Return limit of phase 1."""
+    def charging_state(self) -> ChargingState:
+        """Return charging state."""
 
+    @property
     @abstractmethod
-    def limit_phase2(self) -> float:
-        """Return limit of phase 2."""
+    def phase1(self) -> ChargerPhase:
+        """Return phase 1 data."""
 
+    @property
     @abstractmethod
-    def limit_phase3(self) -> float:
-        """Return limit of phase 3."""
+    def phase2(self) -> ChargerPhase:
+        """Return phase 2 data."""
 
+    @property
+    @abstractmethod
+    def phase3(self) -> ChargerPhase:
+        """Return phase 3 data."""
+
+    @property
     @abstractmethod
     def limit_circuit(self) -> float:
         """Return overall limit per phase on charger circuit."""
@@ -66,28 +73,3 @@ class Charger(ABC):
         """Input entity change callback from state change event."""
         _LOGGER.debug("Sensor change event from HASS: %s", event)
         await self._update_callback()
-
-    def _get_sensor_entity_attribute_value(
-        self, entity_id: str, attribute: str
-    ) -> float | None:
-        """Get value of generic entity parameter."""
-        if entity_id:
-            try:
-                entity = self._hass.states.get(entity_id)
-                # return SensorValue(float(entity.state), entity.last_reported)
-                return float(entity.attributes.get(attribute))
-            except (TypeError, ValueError):
-                _LOGGER.warning(
-                    'Could not convert value "%s" of entity %s to expected format',
-                    entity.state,
-                    entity_id,
-                )
-            except Exception as e:  # noqa: BLE001
-                _LOGGER.error(
-                    'Unknown error when reading and converting "%s": %s',
-                    entity_id,
-                    e,
-                )
-        else:
-            _LOGGER.debug("No entity defined")
-        return None
