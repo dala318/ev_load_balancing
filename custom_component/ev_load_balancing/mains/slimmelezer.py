@@ -1,12 +1,13 @@
 """Handling Slimmelezer mains currents input."""
 
-from datetime import UTC, datetime, timedelta
+from datetime import timedelta
 import logging
 
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.event import async_track_state_change_event
 from homeassistant.helpers.template import device_entities
 
+from ..const import Phases
 from ..helpers.entity_value import get_sensor_entity_value
 from . import Mains, MainsPhase
 
@@ -41,10 +42,13 @@ class MainsSlimmelezer(Mains):
     _variance_min_num = 10
     _variance_max_age = timedelta(minutes=2)
 
-    def __init__(self, hass: HomeAssistant, update_callback, device_id: str) -> None:
+    def __init__(
+        self, hass: HomeAssistant, update_callback, device_id: str, mains_limit: int
+    ) -> None:
         """Initilalize Slimmelezer extractor."""
         super().__init__(hass, update_callback)
         self._id = device_id
+        self._mains_limit = mains_limit
 
         entities = device_entities(hass, device_id)
         used_entities = []
@@ -70,10 +74,15 @@ class MainsSlimmelezer(Mains):
             )
         )
 
-    @property
-    def phase1(self) -> MainsPhase:
-        """Get phase 1 data."""
-        return self._phase1
+    def get_phase(self, phase: Phases) -> MainsPhase:
+        """Return phase X data."""
+        if phase == Phases.PHASE1:
+            return self._phase1
+        if phase == Phases.PHASE2:
+            return self._phase2
+        if phase == Phases.PHASE3:
+            return self._phase3
+        return None
 
     # def current_phase1(self) -> float | None:
     #     """Get phase 1 current."""
@@ -86,7 +95,7 @@ class MainsSlimmelezer(Mains):
     #         self._history_phase1[measurement.timestamp] = measurement.value
 
     #         # Find and drop old values if enough in dict
-    #         # ToDo: This is still work-in-progress since the datetime is not updated if same value
+    #         # : This is still work-in-progress since the datetime is not updated if same value
     #         # Wait to get it working before copying to the remaining phases
     #         drop_keys = []
     #         keep_count = 0
@@ -104,17 +113,11 @@ class MainsSlimmelezer(Mains):
     #     _LOGGER.debug("Returning current %f for phase 1", measurement.value)
     #     return measurement.value
 
-    @property
-    def phase2(self) -> MainsPhase:
-        """Get phase 2 data."""
-        return self._phase2
-
-    @property
-    def phase3(self) -> MainsPhase:
-        """Get phase 3 data."""
-        return self._phase3
+    def get_rated_limit(self) -> int:
+        """Return main limit per phase."""
+        return self._mains_limit
 
     def cleanup(self):
         """Cleanup by removing event listeners."""
-        for listner in self._state_change_listeners:
-            listner()
+        # for listner in self._state_change_listeners:
+        #     listner()

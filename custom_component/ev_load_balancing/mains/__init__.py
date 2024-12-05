@@ -2,11 +2,10 @@
 
 from abc import ABC, abstractmethod
 from datetime import datetime
-import logging
 
 from homeassistant.core import HomeAssistant, dataclass
 
-_LOGGER = logging.getLogger(__name__)
+from ..const import Phases
 
 
 @dataclass
@@ -49,20 +48,13 @@ class Mains(ABC):
         self._hass = hass
         self._update_callback = update_callback
 
-    @property
     @abstractmethod
-    def phase1(self) -> MainsPhase:
-        """Return phase 1 data."""
+    def get_phase(self, phase: Phases) -> MainsPhase:
+        """Return phase X data."""
 
-    @property
     @abstractmethod
-    def phase2(self) -> MainsPhase:
-        """Return phase 2 data."""
-
-    @property
-    @abstractmethod
-    def phase3(self) -> MainsPhase:
-        """Return phase 3 data."""
+    def get_rated_limit(self) -> int:
+        """Return main limit per phase."""
 
     @abstractmethod
     def cleanup(self) -> None:

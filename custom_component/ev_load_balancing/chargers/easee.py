@@ -6,6 +6,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.event import async_track_state_change_event
 from homeassistant.helpers.template import device_entities
 
+from ..const import Phases
 from ..helpers.entity_value import get_sensor_entity_attribute_value
 from . import Charger, ChargerPhase, ChargingState
 
@@ -82,8 +83,8 @@ class ChargerEasee(Charger):
 
     def cleanup(self):
         """Cleanup by removing event listeners."""
-        for listner in self._state_change_listeners:
-            listner()
+        # for listner in self._state_change_listeners:
+        #     listner()
 
     @property
     def charging_state(self) -> ChargingState:
@@ -94,27 +95,22 @@ class ChargerEasee(Charger):
             return ChargingState.PENDING
         return ChargingState.OFF
 
-    @property
-    def phase1(self) -> ChargerPhase:
-        """Get phase 1 data."""
-        return self._phase1
+    def get_phase(self, phase: Phases) -> ChargerPhase:
+        """Return phase X data."""
+        if phase == Phases.PHASE1:
+            return self._phase1
+        if phase == Phases.PHASE2:
+            return self._phase2
+        if phase == Phases.PHASE3:
+            return self._phase3
+        return None
 
-    @property
-    def phase2(self) -> ChargerPhase:
-        """Get phase 2 data."""
-        return self._phase2
-
-    @property
-    def phase3(self) -> ChargerPhase:
-        """Get phase 3 data."""
-        return self._phase3
-
-    @property
-    def limit_circuit(self) -> float:
+    def get_rated_limit(self) -> int:
         """Return overall limit per phase on charger circuit."""
-        # limit = self._get_sensor_entity_attribute_value(
         limit = get_sensor_entity_attribute_value(
             self._hass, _LOGGER, self._ent_circuit_limit, "circuit_ratedCurrent"
         )
-        _LOGGER.debug("Returning limit %f for phase 3", limit)
+        if limit is not None:
+            limit = int(limit)
+            _LOGGER.debug("Returning rated limit %d for charger circuit", limit)
         return limit

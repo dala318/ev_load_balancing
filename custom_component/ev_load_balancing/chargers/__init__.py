@@ -1,12 +1,11 @@
 """Handling Chargers."""
 
 from abc import ABC, abstractmethod
-import logging
+from enum import Enum
 
-from homeassistant.config_entries import Enum
 from homeassistant.core import HomeAssistant
 
-_LOGGER = logging.getLogger(__name__)
+from ..const import Phases
 
 
 class ChargingState(Enum):
@@ -49,27 +48,15 @@ class Charger(ABC):
     def charging_state(self) -> ChargingState:
         """Return charging state."""
 
-    @property
     @abstractmethod
-    def phase1(self) -> ChargerPhase:
-        """Return phase 1 data."""
+    def get_phase(self, phase: Phases) -> ChargerPhase:
+        """Return phase X data."""
 
-    @property
     @abstractmethod
-    def phase2(self) -> ChargerPhase:
-        """Return phase 2 data."""
-
-    @property
-    @abstractmethod
-    def phase3(self) -> ChargerPhase:
-        """Return phase 3 data."""
-
-    @property
-    @abstractmethod
-    def limit_circuit(self) -> float:
-        """Return overall limit per phase on charger circuit."""
+    def get_rated_limit(self) -> int:
+        """Return charger limit per phase."""
 
     async def _async_input_changed(self, event):
         """Input entity change callback from state change event."""
-        _LOGGER.debug("Sensor change event from HASS: %s", event)
+        # _LOGGER.debug("Sensor change event from HASS: %s", event)
         await self._update_callback()
