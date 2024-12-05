@@ -29,9 +29,9 @@ class SensorValue:
 class Mains(ABC):
     """Base class for Mains extractor."""
 
-    _phase1_history: dict[datetime, float] = {}
-    _phase2_history: dict[datetime, float] = {}
-    _phase3_history: dict[datetime, float] = {}
+    _history_phase1: dict[datetime, float] = {}
+    _history_phase2: dict[datetime, float] = {}
+    _history_phase3: dict[datetime, float] = {}
 
     def __init__(self, hass: HomeAssistant, update_callback) -> None:
         """Initialize base class."""
@@ -146,15 +146,15 @@ class MainsSlimmelezer(Mains):
         if not measurement:
             _LOGGER.warning("Returning None for phase 1")
             return None
-        if measurement.timestamp not in self._phase1_history:
-            self._phase1_history[measurement.timestamp] = measurement.value
+        if measurement.timestamp not in self._history_phase1:
+            self._history_phase1[measurement.timestamp] = measurement.value
 
             # Find and drop old values if enough in dict
             # ToDo: This is still work-in-progress since the datetime is not updated if same value
             # Wait to get it working before copying to the remaining phases
             drop_keys = []
             keep_count = 0
-            for k in sorted(self._phase1_history.keys(), reverse=True):
+            for k in sorted(self._history_phase1.keys(), reverse=True):
                 if (
                     keep_count < self._variance_min_num
                     or k > now - self._variance_max_age
@@ -163,7 +163,7 @@ class MainsSlimmelezer(Mains):
                 else:
                     drop_keys.append(k)
             for k in drop_keys:
-                self._phase1_history.pop(k)
+                self._history_phase1.pop(k)
                 _LOGGER.debug("Dropping measurement with key %s", k)
         _LOGGER.debug("Returning current %f for phase 1", measurement.value)
         return measurement.value
