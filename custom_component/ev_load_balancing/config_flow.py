@@ -10,8 +10,9 @@ import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.const import CONF_NAME, CONF_API_KEY, CONF_URL
 from homeassistant.data_entry_flow import FlowResult
-from homeassistant.helpers import selector
+from homeassistant.helpers import selector, device_registry
 import homeassistant.helpers.config_validation as cv
+from homeassistant.helpers.template import device_attr
 
 from .const import DOMAIN
 
@@ -53,10 +54,30 @@ class EvLoadBalancingConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 title=self.data[CONF_NAME], data=self.data, options=self.options
             )
 
+        mains = await self._async_get_devices("slimmelezer")
+        chargers = await self._async_get_devices("easee")
+
         schema = vol.Schema(
             {
                 vol.Required(CONF_NAME): str,  # cv.string,
-                # vol.Required(CONF_URL): str,  # cv.url,
+                vol.Required("mains"): vol.In(mains),
+                vol.Required("mains_limit", default=20): selector.NumberSelector(
+                    selector.NumberSelectorConfig(
+                        min=6,
+                        max=80,
+                        step=1,
+                        unit_of_measurement="ampere",
+                    )
+                ),
+                vol.Required("charger"): vol.In(chargers),
+                vol.Required("charger_expires", default=10): selector.NumberSelector(
+                    selector.NumberSelectorConfig(
+                        min=1,
+                        max=30,
+                        step=1,
+                        unit_of_measurement="minutes",
+                    )
+                ),
             }
         )
 
@@ -71,3 +92,16 @@ class EvLoadBalancingConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             description_placeholders=placeholders,
             errors=errors,
         )
+
+    async def _async_get_devices(self, search_str: str):
+        devices = {}
+        for device_entry in device_registry.async_get(self.hass).devices.values():
+            if (
+                device_entry.manufacturer
+                and search_str.lower() in device_entry.manufacturer.strip().lower()
+            ) or (
+                device_entry.name
+                and search_str.lower() in device_entry.name.strip().lower()
+            ):
+                devices[device_entry.id] = device_entry.name
+        return devices
