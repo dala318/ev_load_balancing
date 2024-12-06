@@ -2,8 +2,8 @@
 
 from unittest import mock
 
-from custom_components.nordpool_planner import config_flow
-from custom_components.nordpool_planner.const import *
+from custom_components.ev_load_balancing import config_flow
+from custom_components.ev_load_balancing.const import *
 import pytest
 
 # from pytest_homeassistant_custom_component.async_mock import patch
@@ -12,23 +12,6 @@ import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.const import ATTR_NAME, ATTR_UNIT_OF_MEASUREMENT
 from homeassistant.helpers import selector
-
-PRICES_ENTITY_NAME = "sensor.nordpool_ent"
-
-SCHEMA_COPY = vol.Schema(
-    {
-        vol.Required(ATTR_NAME): str,
-        vol.Required(CONF_TYPE): selector.SelectSelector(
-            selector.SelectSelectorConfig(options=CONF_TYPE_LIST),
-        ),
-        vol.Required(CONF_PRICES_ENTITY): selector.SelectSelector(
-            selector.SelectSelectorConfig(options=[PRICES_ENTITY_NAME]),
-        ),
-        vol.Required(CONF_ACCEPT_COST_ENTITY, default=False): bool,
-        vol.Required(CONF_ACCEPT_RATE_ENTITY, default=False): bool,
-        vol.Required(CONF_HIGH_COST_ENTITY, default=False): bool,
-    }
-)
 
 
 # @pytest.mark.asyncio
@@ -44,7 +27,7 @@ SCHEMA_COPY = vol.Schema(
 #         "description_placeholders": None,
 #         "errors": {},
 #         "flow_id": mock.ANY,
-#         "handler": "nordpool_planner",
+#         "handler": "ev_load_balancing",
 #         "step_id": "user",
 #         "type": "form",
 #     }
