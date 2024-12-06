@@ -7,6 +7,7 @@ import logging
 from homeassistant.config_entries import ConfigEntry, Debouncer
 from homeassistant.const import CONF_NAME
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import ConfigEntryError
 from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
@@ -83,14 +84,34 @@ class EvLoadBalancingCoordinator(DataUpdateCoordinator):
         )
 
         # Mains currents
-        self._mains = MainsSlimmelezer(
-            hass, self.async_request_refresh, "6b332da8a66c649c42f284a079a8bcaa", 20
-        )
+        if "mains_type" not in config_entry.data:
+            raise ConfigEntryError("No mains type defined in config")
+        if config_entry.data["mains_type"] == "slimmelezer":
+            self._mains = MainsSlimmelezer(
+                hass,
+                self.async_request_refresh,
+                config_entry.data["mains_device_id"],
+                config_entry.data["mains_limit"],
+            )
+        else:
+            raise ConfigEntryError(
+                f"The provided mains type ({config_entry.data["mains"]}) is not supported"
+            )
 
         # Charger
-        self._charger = ChargerEasee(
-            hass, self.async_request_refresh, "308b36c34ff3cd9766f693be289a8f3b"
-        )
+        if "charger_type" not in config_entry.data:
+            raise ConfigEntryError("No charger type defined in config")
+        if config_entry.data["charger_type"] == "easee":
+            self._charger = ChargerEasee(
+                hass,
+                self.async_request_refresh,
+                config_entry.data["charger_device_id"],
+                config_entry.data["charger_expires"],
+            )
+        else:
+            raise ConfigEntryError(
+                f"The provided charger type ({config_entry.data["charger"]}) is not supported"
+            )
 
     def cleanup(self) -> None:
         """Cleanup any pending event listers etc."""

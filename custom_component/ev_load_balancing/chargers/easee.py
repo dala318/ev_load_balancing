@@ -42,10 +42,13 @@ class ChargerEasee(Charger):
 
     _state_change_listeners = []
 
-    def __init__(self, hass: HomeAssistant, update_callback, device_id: str) -> None:
+    def __init__(
+        self, hass: HomeAssistant, update_callback, device_id: str, ttl: int
+    ) -> None:
         """Initilalize Slimmelezer extractor."""
         super().__init__(hass, update_callback)
         self._id = device_id
+        self._ttl = ttl
 
         entities = device_entities(hass, device_id)
 
@@ -93,7 +96,7 @@ class ChargerEasee(Charger):
             "current_p1": phase1,
             "current_p2": phase2,
             "current_p3": phase3,
-            "time_to_live": 10,
+            "time_to_live": self._ttl,
         }
         await self._hass.services.async_call(domain, service, service_data)
 

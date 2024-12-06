@@ -8,11 +8,9 @@ from typing import Any
 import voluptuous as vol
 
 from homeassistant import config_entries
-from homeassistant.const import CONF_NAME, CONF_API_KEY, CONF_URL
+from homeassistant.const import CONF_NAME
 from homeassistant.data_entry_flow import FlowResult
-from homeassistant.helpers import selector, device_registry
-import homeassistant.helpers.config_validation as cv
-from homeassistant.helpers.template import device_attr
+from homeassistant.helpers import device_registry as dr, selector
 
 from .const import DOMAIN
 
@@ -34,13 +32,17 @@ class EvLoadBalancingConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         """Handle initial user step."""
         errors: dict[str, str] = {}
 
+        mains_type = "slimmelezer"
+        charger_type = "easee"
+
         if user_input is not None:
             self.data = user_input
+            self.data["mains_type"] = mains_type
+            self.data["charger_type"] = charger_type
 
             self.options = {}
             await self.async_set_unique_id(
-                self.data[CONF_NAME] + "_"
-                # + self.data[CONF_TYPE]
+                self.data[CONF_NAME] + "_" + mains_type + "_" + charger_type
             )
             self._abort_if_unique_id_configured()
 
@@ -54,13 +56,13 @@ class EvLoadBalancingConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 title=self.data[CONF_NAME], data=self.data, options=self.options
             )
 
-        mains = await self._async_get_devices("slimmelezer")
-        chargers = await self._async_get_devices("easee")
+        mains = await self._async_get_devices(mains_type)
+        chargers = await self._async_get_devices(charger_type)
 
         schema = vol.Schema(
             {
-                vol.Required(CONF_NAME): str,  # cv.string,
-                vol.Required("mains"): vol.In(mains),
+                vol.Required(CONF_NAME): str,
+                vol.Required("mains_device_id"): vol.In(mains),
                 vol.Required("mains_limit", default=20): selector.NumberSelector(
                     selector.NumberSelectorConfig(
                         min=6,
@@ -69,7 +71,7 @@ class EvLoadBalancingConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         unit_of_measurement="ampere",
                     )
                 ),
-                vol.Required("charger"): vol.In(chargers),
+                vol.Required("charger_device_id"): vol.In(chargers),
                 vol.Required("charger_expires", default=10): selector.NumberSelector(
                     selector.NumberSelectorConfig(
                         min=1,
@@ -95,7 +97,7 @@ class EvLoadBalancingConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     async def _async_get_devices(self, search_str: str):
         devices = {}
-        for device_entry in device_registry.async_get(self.hass).devices.values():
+        for device_entry in dr.async_get(self.hass).devices.values():
             if (
                 device_entry.manufacturer
                 and search_str.lower() in device_entry.manufacturer.strip().lower()
