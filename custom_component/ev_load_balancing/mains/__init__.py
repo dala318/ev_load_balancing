@@ -3,22 +3,9 @@
 from abc import ABC, abstractmethod
 from datetime import datetime
 
-from homeassistant.core import HomeAssistant, dataclass
+from homeassistant.core import HomeAssistant
 
 from ..const import Phases
-
-
-@dataclass
-class SensorValue:
-    """Data collector class for sensor measurement."""
-
-    value: float
-    timestamp: datetime
-
-    def __init__(self, value: float, timestamp: datetime) -> None:
-        """Class initilaizer."""
-        self.value = value
-        self.timestamp = timestamp
 
 
 class MainsPhase(ABC):
@@ -55,6 +42,10 @@ class Mains(ABC):
     @abstractmethod
     def get_rated_limit(self) -> int:
         """Return main limit per phase."""
+
+    @abstractmethod
+    def update(self) -> None:
+        """Update measuremetns."""
 
     @abstractmethod
     def cleanup(self) -> None:

@@ -40,6 +40,10 @@ class Charger(ABC):
         """Set charger limits."""
 
     @abstractmethod
+    def update(self) -> None:
+        """Update measuremetns."""
+
+    @abstractmethod
     def cleanup(self) -> None:
         """Cleanup event listners etc."""
 

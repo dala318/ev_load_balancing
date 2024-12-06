@@ -38,7 +38,6 @@ def get_sensor_entity_value(
     if entity_id:
         try:
             entity = hass.states.get(entity_id)
-            # return SensorValue(float(entity.state), entity.last_reported)
             return float(entity.state)
         except (TypeError, ValueError):
             logger.warning(

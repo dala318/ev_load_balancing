@@ -38,12 +38,13 @@ class PhasePair:
     def get_new_limit(self) -> float | None:
         """Calculate and return the propsed new limit for phase."""
         main_actual = self._mains.actual_current()
+        main_stddev = self._mains.stddev_current()
         charger_limit = self._charger.current_limit()
         if main_actual is None or charger_limit is None:
             return None
         spare = self._mains_limit - main_actual
         charger_new_limit = min(
-            charger_limit + spare, self._charger_limit, self._mains_limit
+            charger_limit + spare - main_stddev, self._charger_limit, self._mains_limit
         )
         _LOGGER.debug(
             "Calculated new circuit limit %f (actual: %f, old limit: %f)",
@@ -59,7 +60,7 @@ class EvLoadBalancingCoordinator(DataUpdateCoordinator):
 
     _mains: Mains
     _charger: Charger
-    _pairs = []
+    _pairs = [PhasePair]
 
     def __init__(self, hass: HomeAssistant, config_entry: ConfigEntry) -> None:
         """Initialize my coordinator."""
@@ -131,7 +132,7 @@ class EvLoadBalancingCoordinator(DataUpdateCoordinator):
                 or charger_phase is None
                 or charger_limit is None
             ):
-                self._pairs = []
+                self._pairs.clear()
                 _LOGGER.warning(
                     "Got None value from dependency, aborting setup for now"
                 )
@@ -146,12 +147,14 @@ class EvLoadBalancingCoordinator(DataUpdateCoordinator):
             )
         self._shutdown_requested = False
         _LOGGER.info("Setup successful")
-        # await self._async_update_method()
         return True
 
     async def _async_update_method(self):
         """Update call function."""
         _LOGGER.info("Updating service")
+
+        self._charger.update()
+        self._mains.update()
 
         if self._charger.charging_state not in [
             ChargingState.CHARGING,
@@ -168,4 +171,3 @@ class EvLoadBalancingCoordinator(DataUpdateCoordinator):
             if new_limit is None:
                 _LOGGER.warning("Skipping update since None value found")
                 return
-            # _LOGGER.debug("Calculated new circuit limit %f", new_limit)

@@ -1,7 +1,8 @@
 """Handling Slimmelezer mains currents input."""
 
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
 import logging
+import statistics
 
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.event import async_track_state_change_event
@@ -17,21 +18,54 @@ _LOGGER = logging.getLogger(__name__)
 class MainsPhaseSlimmelezer(MainsPhase):
     """A data class for a mains phase."""
 
+    _stddev_min_num = 10
+    _stddev_max_age = timedelta(minutes=2)
+
     def __init__(self, hass: HomeAssistant, entity_id: str) -> None:
         """Initialize object."""
         self._hass = hass
         self._entity = entity_id
+        self._value = None
+        self._history_values = {}
 
-    def actual_current(self) -> float:
-        """Get actual current on phase."""
-        return get_sensor_entity_value(
+    def update(self) -> None:
+        """Update measuremetns."""
+        now = datetime.now(UTC)
+        self._value = get_sensor_entity_value(
             self._hass,
             _LOGGER,
             self._entity,
         )
 
+        if self._value is None:
+            _LOGGER.debug("Skipping history since None value")
+            return
+
+        self._history_values[now] = self._value
+
+        # Find and drop old values if enough in dict
+        drop_keys = []
+        keep_count = 0
+        for k in sorted(self._history_values.keys(), reverse=True):
+            if keep_count < self._stddev_min_num or k > now - self._stddev_max_age:
+                keep_count += 1
+            else:
+                drop_keys.append(k)
+        for k in drop_keys:
+            self._history_values.pop(k)
+            _LOGGER.debug("Dropping measurement with key %s", k)
+
+    def actual_current(self) -> float:
+        """Get actual current on phase."""
+        return self._value
+
     def stddev_current(self) -> float:
         """Get standard deviation of current on phase."""
+        if len(self._history_values) > self._stddev_min_num / 2:
+            return statistics.pstdev(self._history_values.values())
+        _LOGGER.debug(
+            "Not enough values for stddev (%d), returning 0", len(self._history_values)
+        )
         return 0
 
 
@@ -39,8 +73,6 @@ class MainsSlimmelezer(Mains):
     """Slimmelezer mains extractor."""
 
     _state_change_listeners = []
-    _variance_min_num = 10
-    _variance_max_age = timedelta(minutes=2)
 
     def __init__(
         self, hass: HomeAssistant, update_callback, device_id: str, mains_limit: int
@@ -70,7 +102,6 @@ class MainsSlimmelezer(Mains):
                 self._hass,
                 used_entities,
                 self._async_input_changed,
-                # self._async_input_changed_local,
             )
         )
 
@@ -84,38 +115,15 @@ class MainsSlimmelezer(Mains):
             return self._phase3
         return None
 
-    # def current_phase1(self) -> float | None:
-    #     """Get phase 1 current."""
-    #     now = datetime.now(UTC)
-    #     measurement = self._get_sensor_entity_value(self._ent_phase1)
-    #     if not measurement:
-    #         _LOGGER.warning("Returning None for phase 1")
-    #         return None
-    #     if measurement.timestamp not in self._history_phase1:
-    #         self._history_phase1[measurement.timestamp] = measurement.value
-
-    #         # Find and drop old values if enough in dict
-    #         # : This is still work-in-progress since the datetime is not updated if same value
-    #         # Wait to get it working before copying to the remaining phases
-    #         drop_keys = []
-    #         keep_count = 0
-    #         for k in sorted(self._history_phase1.keys(), reverse=True):
-    #             if (
-    #                 keep_count < self._variance_min_num
-    #                 or k > now - self._variance_max_age
-    #             ):
-    #                 keep_count += 1
-    #             else:
-    #                 drop_keys.append(k)
-    #         for k in drop_keys:
-    #             self._history_phase1.pop(k)
-    #             _LOGGER.debug("Dropping measurement with key %s", k)
-    #     _LOGGER.debug("Returning current %f for phase 1", measurement.value)
-    #     return measurement.value
-
     def get_rated_limit(self) -> int:
         """Return main limit per phase."""
         return self._mains_limit
+
+    def update(self) -> None:
+        """Update measuremetns."""
+        self._phase1.update()
+        self._phase2.update()
+        self._phase3.update()
 
     def cleanup(self):
         """Cleanup by removing event listeners."""

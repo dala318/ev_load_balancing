@@ -21,15 +21,20 @@ class ChargerPhaseEasee(ChargerPhase):
         self._hass = hass
         self._entity = entity_id
         self._attribute = attribute
+        self._value = None
 
-    def current_limit(self) -> float:
-        """Get set current limit on phase."""
-        return get_sensor_entity_attribute_value(
+    def update(self) -> None:
+        """Update measuremetns."""
+        self._value = get_sensor_entity_attribute_value(
             self._hass,
             _LOGGER,
             self._entity,
             self._attribute,
         )
+
+    def current_limit(self) -> float:
+        """Get set current limit on phase."""
+        return self._value
 
 
 class ChargerEasee(Charger):
@@ -80,6 +85,12 @@ class ChargerEasee(Charger):
             "Setting limits: phase 1 %f, phase 2 %f, phase 3 %f", phase1, phase2, phase3
         )
         return True
+
+    def update(self) -> None:
+        """Update measuremetns."""
+        self._phase1.update()
+        self._phase2.update()
+        self._phase3.update()
 
     def cleanup(self):
         """Cleanup by removing event listeners."""
