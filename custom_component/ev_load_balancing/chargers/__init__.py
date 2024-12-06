@@ -36,7 +36,9 @@ class Charger(ABC):
         self._update_callback = update_callback
 
     @abstractmethod
-    def set_limits(self, phase1: float, phase2: float, phase3: float) -> bool:
+    async def async_set_limits(
+        self, phase1: float, phase2: float, phase3: float
+    ) -> bool:
         """Set charger limits."""
 
     @abstractmethod

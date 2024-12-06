@@ -166,8 +166,15 @@ class EvLoadBalancingCoordinator(DataUpdateCoordinator):
                 "Abort call due to charging not active disabled during development"
             )
 
+        new_limits = []
         for pair in self._pairs:
             new_limit = pair.get_new_limit()
             if new_limit is None:
                 _LOGGER.warning("Skipping update since None value found")
                 return
+            new_limits.append(new_limit)
+
+        if len(new_limits) >= 3:
+            await self._charger.async_set_limits(
+                new_limits[0], new_limits[1], new_limits[2]
+            )

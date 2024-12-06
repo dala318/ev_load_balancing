@@ -79,11 +79,24 @@ class ChargerEasee(Charger):
             self._hass, self._ent_circuit_limit, "state_dynamicCircuitCurrentP3"
         )
 
-    def set_limits(self, phase1: float, phase2: float, phase3: float) -> bool:
+    async def async_set_limits(
+        self, phase1: float, phase2: float, phase3: float
+    ) -> bool:
         """Set charger limits."""
         _LOGGER.debug(
             "Setting limits: phase 1 %f, phase 2 %f, phase 3 %f", phase1, phase2, phase3
         )
+        domain = "easee"
+        service = "set_circuit_dynamic_limit"
+        service_data = {
+            "device_id": self._id,
+            "current_p1": phase1,
+            "current_p2": phase2,
+            "current_p3": phase3,
+            "time_to_live": 10,
+        }
+        await self._hass.services.async_call(domain, service, service_data)
+
         return True
 
     def update(self) -> None:
