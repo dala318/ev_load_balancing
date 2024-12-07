@@ -116,9 +116,10 @@ class ChargerEasee(Charger):
     @property
     def charging_state(self) -> ChargingState:
         """Return if charging state."""
-        if self._hass.states.get(self._ent_status).state in ["charging"]:
+        state = self._hass.states.get(self._ent_status).state
+        if state in ["charging"]:
             return ChargingState.CHARGING
-        if self._hass.states.get(self._ent_status).state in ["awaiting_start"]:
+        if state in ["awaiting_start"]:
             return ChargingState.PENDING
         return ChargingState.OFF
 

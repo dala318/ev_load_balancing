@@ -4,9 +4,6 @@ from __future__ import annotations
 
 import logging
 
-# from homeassistant.const import CONF_API_KEY, CONF_NAME, CONF_URL, Platform
-# from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
-# from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 
