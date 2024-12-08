@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 import logging
 
 from homeassistant.config_entries import ConfigEntry, Debouncer
@@ -13,7 +14,17 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 
 from .chargers import Charger, ChargerPhase, ChargingState
 from .chargers.easee import ChargerEasee
-from .const import Phases
+from .const import (
+    CONF_CHARGER_DEVICE_ID,
+    CONF_CHARGER_EXPIRES,
+    CONF_CHARGER_TYPE,
+    CONF_MAINS_DEVICE_ID,
+    CONF_MAINS_LIMIT,
+    CONF_MAINS_TYPE,
+    NAME_EASEE,
+    NAME_SLIMMELEZER,
+    Phases,
+)
 from .mains import Mains, MainsPhase
 from .mains.slimmelezer import MainsSlimmelezer
 
@@ -40,18 +51,20 @@ class PhasePair:
         """Calculate and return the propsed new limit for phase."""
         main_actual = self._mains.actual_current()
         main_stddev = self._mains.stddev_current()
-        charger_limit = self._charger.current_limit()
-        if main_actual is None or charger_limit is None:
+        charger_set_limit = self._charger.current_limit()
+        if main_actual is None or charger_set_limit is None:
             return None
         spare = self._mains_limit - main_actual
         charger_new_limit = min(
-            charger_limit + spare - main_stddev, self._charger_limit, self._mains_limit
+            charger_set_limit + spare - main_stddev,
+            self._charger_limit,
+            self._mains_limit,
         )
         _LOGGER.debug(
             "Calculated new circuit limit %f (actual: %f, old limit: %f)",
             charger_new_limit,
             main_actual,
-            charger_limit,
+            charger_set_limit,
         )
         return charger_new_limit
 
@@ -62,6 +75,8 @@ class EvLoadBalancingCoordinator(DataUpdateCoordinator):
     _mains: Mains
     _charger: Charger
     _pairs = [PhasePair]
+    _update_callbacks = []
+    _last_update = None
 
     def __init__(self, hass: HomeAssistant, config_entry: ConfigEntry) -> None:
         """Initialize my coordinator."""
@@ -84,34 +99,49 @@ class EvLoadBalancingCoordinator(DataUpdateCoordinator):
         )
 
         # Mains currents
-        if "mains_type" not in config_entry.data:
+        if CONF_MAINS_TYPE not in config_entry.data:
             raise ConfigEntryError("No mains type defined in config")
-        if config_entry.data["mains_type"] == "slimmelezer":
+        if config_entry.data[CONF_MAINS_TYPE] == NAME_SLIMMELEZER:
             self._mains = MainsSlimmelezer(
                 hass,
                 self.async_request_refresh,
-                config_entry.data["mains_device_id"],
-                config_entry.data["mains_limit"],
+                config_entry.options[CONF_MAINS_DEVICE_ID],
+                config_entry.options[CONF_MAINS_LIMIT],
             )
         else:
             raise ConfigEntryError(
-                f"The provided mains type ({config_entry.data["mains"]}) is not supported"
+                f"The provided mains type ({config_entry.data[CONF_MAINS_TYPE]}) is not supported"
             )
 
         # Charger
-        if "charger_type" not in config_entry.data:
+        if CONF_CHARGER_TYPE not in config_entry.data:
             raise ConfigEntryError("No charger type defined in config")
-        if config_entry.data["charger_type"] == "easee":
+        if config_entry.data[CONF_CHARGER_TYPE] == NAME_EASEE:
             self._charger = ChargerEasee(
                 hass,
                 self.async_request_refresh,
-                config_entry.data["charger_device_id"],
-                config_entry.data["charger_expires"],
+                config_entry.options[CONF_CHARGER_DEVICE_ID],
+                config_entry.options[CONF_CHARGER_EXPIRES],
             )
         else:
             raise ConfigEntryError(
-                f"The provided charger type ({config_entry.data["charger"]}) is not supported"
+                f"The provided charger type ({config_entry.data[CONF_CHARGER_TYPE]}) is not supported"
             )
+
+    @property
+    def last_update(self) -> datetime:
+        """Get last update timestamp."""
+        return self._last_update
+
+    def register_output_listener_entity(self, callback_func) -> None:
+        """Register output entity."""
+        self._update_callbacks.append(callback_func)
+
+    async def update_listener(self, config_entry):
+        """Handle options update."""
+        raise NotImplementedError(
+            f"Coordinator has not function for handling new config_entry ({config_entry})"
+        )
 
     def cleanup(self) -> None:
         """Cleanup any pending event listers etc."""
@@ -130,8 +160,11 @@ class EvLoadBalancingCoordinator(DataUpdateCoordinator):
         """Get device info to group entities."""
         return DeviceInfo(
             name=self.name,
-            # manufacturer="LoadBalancing",
             entry_type=DeviceEntryType.SERVICE,
+            identifiers={
+                ("mains", self._mains.device_id),
+                ("charger", self._charger.device_id),
+            },
         )
 
     async def _async_setup_method(self) -> bool:
@@ -199,3 +232,6 @@ class EvLoadBalancingCoordinator(DataUpdateCoordinator):
             await self._charger.async_set_limits(
                 new_limits[0], new_limits[1], new_limits[2]
             )
+            self._last_update = datetime.now(UTC)
+            for callback_func in self._update_callbacks:
+                callback_func()

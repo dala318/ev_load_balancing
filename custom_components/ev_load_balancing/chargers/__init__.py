@@ -62,6 +62,11 @@ class Charger(ABC):
     def get_rated_limit(self) -> int:
         """Return charger limit per phase."""
 
+    @property
+    @abstractmethod
+    def device_id(self) -> str:
+        """Device id."""
+
     async def _async_input_changed(self, event):
         """Input entity change callback from state change event."""
         # _LOGGER.debug("Sensor change event from HASS: %s", event)

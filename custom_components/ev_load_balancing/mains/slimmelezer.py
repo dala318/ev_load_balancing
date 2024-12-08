@@ -129,3 +129,8 @@ class MainsSlimmelezer(Mains):
         """Cleanup by removing event listeners."""
         # for listner in self._state_change_listeners:
         #     listner()
+
+    @property
+    def device_id(self) -> str:
+        """Device id."""
+        return self._id

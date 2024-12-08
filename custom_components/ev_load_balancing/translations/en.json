@@ -4,7 +4,18 @@
             "user": {
                 "description": "Setup a Load balancer instance",
                 "data": {
-                    "name": "Name of balancer"
+                    "name": "Name of balancer",
+                    "mains_type": "Type of device masuring mains consumption",
+                    "charger_type": "Type of EV charging device"
+                }
+            },
+            "devices": {
+                "description": "Select ther individual devices and settings",
+                "data": {
+                    "mains_device_id": "Device that measures mains conumption",
+                    "mains_limit": "Rated limit of main fuse",
+                    "charger_device_id": "Device that cntrolls EV charging",
+                    "charger_expires": "Charger limit expires after, if no update"
                 }
             }
         },
@@ -13,7 +24,7 @@
             "invalid_template": "The template is invalid"
         },
         "abort": {
-            "already_configured": "Already configured with the same settings or name"
+            "already_configured": "Already configured with the same devices"
           }
     }
 }

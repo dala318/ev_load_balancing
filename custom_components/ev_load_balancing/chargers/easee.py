@@ -142,3 +142,8 @@ class ChargerEasee(Charger):
             limit = int(limit)
             _LOGGER.debug("Returning rated limit %d for charger circuit", limit)
         return limit
+
+    @property
+    def device_id(self) -> str:
+        """Device id."""
+        return self._id
