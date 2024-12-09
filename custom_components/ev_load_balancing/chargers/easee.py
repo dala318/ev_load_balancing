@@ -36,6 +36,11 @@ class ChargerPhaseEasee(ChargerPhase):
         """Get set current limit on phase."""
         return self._value
 
+    @property
+    def name(self) -> str:
+        """Get friendly name of phase."""
+        return self._entity + " " + self._attribute
+
 
 class ChargerEasee(Charger):
     """Slimmelezer mains extractor."""

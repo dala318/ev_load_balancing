@@ -26,6 +26,11 @@ class ChargerPhase(ABC):
     def current_limit(self) -> float:
         """Get set current limit on phase."""
 
+    @property
+    @abstractmethod
+    def name(self) -> str:
+        """Get friendly name of phase."""
+
 
 class Charger(ABC):
     """Base class for Charger robot."""
@@ -70,4 +75,5 @@ class Charger(ABC):
     async def _async_input_changed(self, event):
         """Input entity change callback from state change event."""
         # _LOGGER.debug("Sensor change event from HASS: %s", event)
-        await self._update_callback()
+        if self._update_callback is not None:
+            await self._update_callback()

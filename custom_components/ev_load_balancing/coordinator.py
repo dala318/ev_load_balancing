@@ -17,10 +17,18 @@ from .chargers.easee import ChargerEasee
 from .const import (
     CONF_CHARGER_DEVICE_ID,
     CONF_CHARGER_EXPIRES,
+    CONF_CHARGER_PHASE1,
+    CONF_CHARGER_PHASE2,
+    CONF_CHARGER_PHASE3,
     CONF_CHARGER_TYPE,
+    CONF_DEVICES,
     CONF_MAINS_DEVICE_ID,
     CONF_MAINS_LIMIT,
+    CONF_MAINS_PHASE1,
+    CONF_MAINS_PHASE2,
+    CONF_MAINS_PHASE3,
     CONF_MAINS_TYPE,
+    CONF_PHASES,
     NAME_EASEE,
     NAME_SLIMMELEZER,
     Phases,
@@ -105,8 +113,8 @@ class EvLoadBalancingCoordinator(DataUpdateCoordinator):
             self._mains = MainsSlimmelezer(
                 hass,
                 self.async_request_refresh,
-                config_entry.options[CONF_MAINS_DEVICE_ID],
-                config_entry.options[CONF_MAINS_LIMIT],
+                config_entry.options[CONF_DEVICES][CONF_MAINS_DEVICE_ID],
+                config_entry.options[CONF_DEVICES][CONF_MAINS_LIMIT],
             )
         else:
             raise ConfigEntryError(
@@ -120,13 +128,25 @@ class EvLoadBalancingCoordinator(DataUpdateCoordinator):
             self._charger = ChargerEasee(
                 hass,
                 self.async_request_refresh,
-                config_entry.options[CONF_CHARGER_DEVICE_ID],
-                config_entry.options[CONF_CHARGER_EXPIRES],
+                config_entry.options[CONF_DEVICES][CONF_CHARGER_DEVICE_ID],
+                config_entry.options[CONF_DEVICES][CONF_CHARGER_EXPIRES],
             )
         else:
             raise ConfigEntryError(
                 f"The provided charger type ({config_entry.data[CONF_CHARGER_TYPE]}) is not supported"
             )
+
+        self._mapping = {
+            Phases[config_entry.options[CONF_PHASES][CONF_MAINS_PHASE1]]: Phases[
+                config_entry.options[CONF_PHASES][CONF_CHARGER_PHASE1]
+            ],
+            Phases[config_entry.options[CONF_PHASES][CONF_MAINS_PHASE2]]: Phases[
+                config_entry.options[CONF_PHASES][CONF_CHARGER_PHASE2]
+            ],
+            Phases[config_entry.options[CONF_PHASES][CONF_MAINS_PHASE3]]: Phases[
+                config_entry.options[CONF_PHASES][CONF_CHARGER_PHASE3]
+            ],
+        }
 
     @property
     def last_update(self) -> datetime:
@@ -169,13 +189,13 @@ class EvLoadBalancingCoordinator(DataUpdateCoordinator):
 
     async def _async_setup_method(self) -> bool:
         """Setups call method."""
-        mapping = {
-            Phases.PHASE1: Phases.PHASE2,
-            Phases.PHASE2: Phases.PHASE3,
-            Phases.PHASE3: Phases.PHASE1,
-        }
+        # mapping = {
+        #     Phases.PHASE1: Phases.PHASE2,
+        #     Phases.PHASE2: Phases.PHASE3,
+        #     Phases.PHASE3: Phases.PHASE1,
+        # }
 
-        for ch, ma in mapping.items():
+        for ch, ma in self._mapping.items():
             mains_phase = self._mains.get_phase(ma)
             mains_limit = self._mains.get_rated_limit()
             charger_phase = self._charger.get_phase(ch)

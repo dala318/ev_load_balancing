@@ -17,11 +17,23 @@
                     "charger_device_id": "Device that cntrolls EV charging",
                     "charger_expires": "Charger limit expires after, if no update"
                 }
+            },
+            "phases": {
+                "description": "Select how to match-up phases in pairs",
+                "data": {
+                    "mains_phase1": "Select the Phase 1 sensor entity for mains",
+                    "charger_phase1": "Select the Phase 1 property for charger",
+                    "mains_phase2": "Select the Phase 2 sensor entity for mains",
+                    "charger_phase2": "Select the Phase 2 property for charger",
+                    "mains_phase3": "Select the Phase 3 sensor entity for mains",
+                    "charger_phase3": "Select the Phase 3 property for charger"
+                }
             }
         },
         "error": {
             "name_exists": "Name already exists",
-            "invalid_template": "The template is invalid"
+            "invalid_template": "The template is invalid",
+            "duplicate_phase_matching": "Make sure to select unique pairing of phases"
         },
         "abort": {
             "already_configured": "Already configured with the same devices"

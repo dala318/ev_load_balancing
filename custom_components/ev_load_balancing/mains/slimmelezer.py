@@ -68,6 +68,11 @@ class MainsPhaseSlimmelezer(MainsPhase):
         )
         return 0
 
+    @property
+    def name(self) -> str:
+        """Get friendly name of phase."""
+        return self._entity
+
 
 class MainsSlimmelezer(Mains):
     """Slimmelezer mains extractor."""
