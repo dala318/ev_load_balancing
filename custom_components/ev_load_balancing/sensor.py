@@ -10,7 +10,7 @@ from homeassistant.components.sensor import (
     SensorEntityDescription,
 )
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import STATE_UNKNOWN
+from homeassistant.const import STATE_UNKNOWN, EntityCategory
 from homeassistant.core import HomeAssistant
 
 from . import EvLoadBalancingCoordinator
@@ -25,27 +25,34 @@ async def async_setup_entry(
     """Create state sensor entities for platform."""
 
     coordinator: EvLoadBalancingCoordinator = hass.data[DOMAIN][config_entry.entry_id]
-    entities = []
-
-    entities.append(
+    entities = [
         LastUpdateSensor(
             coordinator,
             entity_description=SensorEntityDescription(
                 key="last_update",
                 name="Last Update",
                 device_class=SensorDeviceClass.TIMESTAMP,
+                entity_category=EntityCategory.DIAGNOSTIC,
             ),
-        )
-    )
+        ),
+        UpdateAgeSensor(
+            coordinator,
+            entity_description=SensorEntityDescription(
+                key="update_age",
+                name="Update Age",
+                device_class=SensorDeviceClass.DURATION,
+                entity_category=EntityCategory.DIAGNOSTIC,
+                native_unit_of_measurement="seconds",
+            ),
+        ),
+    ]
 
     async_add_entities(entities)
     return True
 
 
-class LastUpdateSensor(SensorEntity):
-    """State sensor."""
-
-    _attr_icon = "mdi:clock-edit-outline"
+class BaseSensor(SensorEntity):
+    """Base class for sensor entity."""
 
     def __init__(
         self,
@@ -62,10 +69,25 @@ class LastUpdateSensor(SensorEntity):
             (DOMAIN + "_" + self._attr_name).lower().replace(".", "").replace(" ", "_")
         )
 
+    async def async_added_to_hass(self) -> None:
+        """Load the last known state when added to hass."""
+        await super().async_added_to_hass()
+        self._coordinator.register_output_listener_entity(self.update_callback)
+
+    def update_callback(self) -> None:
+        """Call from planner that new data available."""
+        self.schedule_update_ha_state()
+
+
+class LastUpdateSensor(BaseSensor):
+    """State sensor."""
+
+    _attr_icon = "mdi:clock-edit-outline"
+
     @property
     def native_value(self):
         """Output state."""
-        state = STATE_UNKNOWN
+        state = None
         if self._coordinator.last_update is not None:
             state = self._coordinator.last_update
         _LOGGER.debug(
@@ -75,11 +97,32 @@ class LastUpdateSensor(SensorEntity):
         )
         return state
 
-    async def async_added_to_hass(self) -> None:
-        """Load the last known state when added to hass."""
-        await super().async_added_to_hass()
-        self._coordinator.register_output_listener_entity(self.update_callback)
 
-    def update_callback(self) -> None:
-        """Call from planner that new data available."""
-        self.schedule_update_ha_state()
+class UpdateAgeSensor(BaseSensor):
+    """State sensor."""
+
+    _attr_icon = "mdi:clock-edit-outline"
+    _last_update = None
+    _last_value = 0
+
+    @property
+    def native_value(self):
+        """Output state."""
+        state = None
+        if self._coordinator.last_update is not None:
+            if self._last_update is not None:
+                delta = int(
+                    (self._coordinator.last_update - self._last_update).total_seconds()
+                )
+                if delta != 0:
+                    state = delta
+                    self._last_value = delta
+                else:
+                    state = self._last_value
+            self._last_update = self._coordinator.last_update
+        _LOGGER.debug(
+            'Returning state "%s" of sensor "%s"',
+            state,
+            self.unique_id,
+        )
+        return state

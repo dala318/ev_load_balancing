@@ -17,10 +17,18 @@ from .chargers.easee import ChargerEasee
 from .const import (
     CONF_CHARGER_DEVICE_ID,
     CONF_CHARGER_EXPIRES,
+    CONF_CHARGER_PHASE1,
+    CONF_CHARGER_PHASE2,
+    CONF_CHARGER_PHASE3,
     CONF_CHARGER_TYPE,
+    CONF_DEVICES,
     CONF_MAINS_DEVICE_ID,
     CONF_MAINS_LIMIT,
+    CONF_MAINS_PHASE1,
+    CONF_MAINS_PHASE2,
+    CONF_MAINS_PHASE3,
     CONF_MAINS_TYPE,
+    CONF_PHASES,
     NAME_EASEE,
     NAME_SLIMMELEZER,
     Phases,
@@ -36,22 +44,22 @@ class PhasePair:
 
     def __init__(
         self,
-        mains: MainsPhase,
+        mains_phase: MainsPhase,
         mains_limit: int,
-        charger: ChargerPhase,
+        charger_phase: ChargerPhase,
         charger_limit: int,
     ) -> None:
         """Pair of Charger and Mains phases."""
-        self._mains = mains
+        self._mains_phase = mains_phase
         self._mains_limit = mains_limit
-        self._charger = charger
+        self._charger_phase = charger_phase
         self._charger_limit = charger_limit
 
     def get_new_limit(self) -> float | None:
         """Calculate and return the propsed new limit for phase."""
-        main_actual = self._mains.actual_current()
-        main_stddev = self._mains.stddev_current()
-        charger_set_limit = self._charger.current_limit()
+        main_actual = self._mains_phase.actual_current()
+        main_stddev = self._mains_phase.stddev_current()
+        charger_set_limit = self._charger_phase.current_limit()
         if main_actual is None or charger_set_limit is None:
             return None
         spare = self._mains_limit - main_actual
@@ -105,8 +113,8 @@ class EvLoadBalancingCoordinator(DataUpdateCoordinator):
             self._mains = MainsSlimmelezer(
                 hass,
                 self.async_request_refresh,
-                config_entry.options[CONF_MAINS_DEVICE_ID],
-                config_entry.options[CONF_MAINS_LIMIT],
+                config_entry.options[CONF_DEVICES][CONF_MAINS_DEVICE_ID],
+                config_entry.options[CONF_DEVICES][CONF_MAINS_LIMIT],
             )
         else:
             raise ConfigEntryError(
@@ -120,13 +128,25 @@ class EvLoadBalancingCoordinator(DataUpdateCoordinator):
             self._charger = ChargerEasee(
                 hass,
                 self.async_request_refresh,
-                config_entry.options[CONF_CHARGER_DEVICE_ID],
-                config_entry.options[CONF_CHARGER_EXPIRES],
+                config_entry.options[CONF_DEVICES][CONF_CHARGER_DEVICE_ID],
+                config_entry.options[CONF_DEVICES][CONF_CHARGER_EXPIRES],
             )
         else:
             raise ConfigEntryError(
                 f"The provided charger type ({config_entry.data[CONF_CHARGER_TYPE]}) is not supported"
             )
+
+        self._mapping = {
+            Phases[config_entry.options[CONF_PHASES][CONF_MAINS_PHASE1]]: Phases[
+                config_entry.options[CONF_PHASES][CONF_CHARGER_PHASE1]
+            ],
+            Phases[config_entry.options[CONF_PHASES][CONF_MAINS_PHASE2]]: Phases[
+                config_entry.options[CONF_PHASES][CONF_CHARGER_PHASE2]
+            ],
+            Phases[config_entry.options[CONF_PHASES][CONF_MAINS_PHASE3]]: Phases[
+                config_entry.options[CONF_PHASES][CONF_CHARGER_PHASE3]
+            ],
+        }
 
     @property
     def last_update(self) -> datetime:
@@ -169,17 +189,11 @@ class EvLoadBalancingCoordinator(DataUpdateCoordinator):
 
     async def _async_setup_method(self) -> bool:
         """Setups call method."""
-        mapping = {
-            Phases.PHASE1: Phases.PHASE2,
-            Phases.PHASE2: Phases.PHASE3,
-            Phases.PHASE3: Phases.PHASE1,
-        }
-
-        for ch, ma in mapping.items():
+        mains_limit = self._mains.get_rated_limit()
+        charger_limit = self._charger.get_rated_limit()
+        for ch, ma in self._mapping.items():
             mains_phase = self._mains.get_phase(ma)
-            mains_limit = self._mains.get_rated_limit()
             charger_phase = self._charger.get_phase(ch)
-            charger_limit = self._charger.get_rated_limit()
             if (
                 mains_phase is None
                 or mains_limit is None
@@ -191,6 +205,11 @@ class EvLoadBalancingCoordinator(DataUpdateCoordinator):
                     "Got None value from dependency, aborting setup for now"
                 )
                 raise UpdateFailed("Got None value from dependency")
+            _LOGGER.info(
+                'Mapping mains "%s" to charger "%s"',
+                mains_phase.name,
+                charger_phase.name,
+            )
             self._pairs.append(
                 PhasePair(
                     mains_phase,
@@ -214,6 +233,7 @@ class EvLoadBalancingCoordinator(DataUpdateCoordinator):
             ChargingState.CHARGING,
             ChargingState.PENDING,
         ]:
+            self._last_update = None
             _LOGGER.debug("Skipping update since no charging active or pending")
             # return
             _LOGGER.warning(

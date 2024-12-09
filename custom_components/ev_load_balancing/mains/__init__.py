@@ -22,6 +22,11 @@ class MainsPhase(ABC):
     def stddev_current(self) -> float:
         """Get standard deviation of current on phase."""
 
+    @property
+    @abstractmethod
+    def name(self) -> str:
+        """Get friendly name of phase."""
+
 
 class Mains(ABC):
     """Base class for Mains extractor."""
@@ -59,4 +64,5 @@ class Mains(ABC):
     async def _async_input_changed(self, event):
         """Input entity change callback from state change event."""
         # _LOGGER.debug("Sensor change event from HASS: %s", event)
-        await self._update_callback()
+        if self._update_callback is not None:
+            await self._update_callback()
