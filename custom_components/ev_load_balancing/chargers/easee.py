@@ -39,7 +39,7 @@ class ChargerPhaseEasee(ChargerPhase):
     @property
     def name(self) -> str:
         """Get friendly name of phase."""
-        return self._entity + " " + self._attribute
+        return f"{self._attribute} ({self._entity})"
 
 
 class ChargerEasee(Charger):

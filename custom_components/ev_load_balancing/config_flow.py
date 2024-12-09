@@ -38,6 +38,8 @@ from .mains.slimmelezer import MainsSlimmelezer
 _LOGGER = logging.getLogger(__name__)
 
 
+# class DuplicatePhasematchingException(Exception):
+
 # @staticmethod
 # @config_entries.callback
 # def async_get_options_flow(
@@ -179,28 +181,29 @@ class EvLoadBalancingConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         """Handle initial user step."""
         errors: dict[str, str] = {}
 
-        if user_input is not None and (
-            user_input[CONF_MAINS_PHASE1] == user_input[CONF_MAINS_PHASE2]
-            or user_input[CONF_MAINS_PHASE2] == user_input[CONF_MAINS_PHASE3]
-            or user_input[CONF_MAINS_PHASE3] == user_input[CONF_MAINS_PHASE1]
-            or user_input[CONF_CHARGER_PHASE1] == user_input[CONF_CHARGER_PHASE2]
-            or user_input[CONF_CHARGER_PHASE2] == user_input[CONF_CHARGER_PHASE3]
-            or user_input[CONF_CHARGER_PHASE3] == user_input[CONF_CHARGER_PHASE1]
-        ):
-            errors["duplicate_phase_matching"] = "Found duplicate matching of phases"
+        if user_input is not None:
+            if (
+                user_input[CONF_MAINS_PHASE1] == user_input[CONF_MAINS_PHASE2]
+                or user_input[CONF_MAINS_PHASE2] == user_input[CONF_MAINS_PHASE3]
+                or user_input[CONF_MAINS_PHASE3] == user_input[CONF_MAINS_PHASE1]
+                or user_input[CONF_CHARGER_PHASE1] == user_input[CONF_CHARGER_PHASE2]
+                or user_input[CONF_CHARGER_PHASE2] == user_input[CONF_CHARGER_PHASE3]
+                or user_input[CONF_CHARGER_PHASE3] == user_input[CONF_CHARGER_PHASE1]
+            ):
+                errors["base"] = "duplicate_phase_matching"
 
-        elif user_input is not None:
-            self.options[CONF_PHASES] = user_input
+            else:
+                self.options[CONF_PHASES] = user_input
 
-            _LOGGER.debug(
-                'Creating entry "%s" with data "%s" and options %s',
-                self.unique_id,
-                self.data,
-                self.options,
-            )
-            return self.async_create_entry(
-                title=self.data[CONF_NAME], data=self.data, options=self.options
-            )
+                _LOGGER.debug(
+                    'Creating entry "%s" with data "%s" and options %s',
+                    self.unique_id,
+                    self.data,
+                    self.options,
+                )
+                return self.async_create_entry(
+                    title=self.data[CONF_NAME], data=self.data, options=self.options
+                )
 
         mains = MainsSlimmelezer(
             self.hass,

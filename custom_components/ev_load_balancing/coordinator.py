@@ -189,17 +189,11 @@ class EvLoadBalancingCoordinator(DataUpdateCoordinator):
 
     async def _async_setup_method(self) -> bool:
         """Setups call method."""
-        # mapping = {
-        #     Phases.PHASE1: Phases.PHASE2,
-        #     Phases.PHASE2: Phases.PHASE3,
-        #     Phases.PHASE3: Phases.PHASE1,
-        # }
-
+        mains_limit = self._mains.get_rated_limit()
+        charger_limit = self._charger.get_rated_limit()
         for ch, ma in self._mapping.items():
             mains_phase = self._mains.get_phase(ma)
-            mains_limit = self._mains.get_rated_limit()
             charger_phase = self._charger.get_phase(ch)
-            charger_limit = self._charger.get_rated_limit()
             if (
                 mains_phase is None
                 or mains_limit is None
