@@ -38,3 +38,7 @@ Will soon add a description how it could be extended to work with other devices 
 5. Submit
     * Directly after submit or restart of Home Assistant the integration may show an error, this is likely due to the delay in Easee sensor reporting, give it some seconds and it should work.
 7. Start charging your vehicle and monitor the mains consumption and limits of your charger (attributes of the `dynamic_circuit_limit` sensor) if it works for you!
+
+## Feedback
+
+If you find an error of have some proposal for improvment, please look through the [Issues](https://github.com/dala318/ev_load_balancing/issues) and create a new if not reported before, or start a thread in the [Discussions page](https://github.com/dala318/ev_load_balancing/discussions)
