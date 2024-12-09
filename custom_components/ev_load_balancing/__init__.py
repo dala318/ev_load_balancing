@@ -6,9 +6,10 @@ import logging
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, HomeAssistantError
 
-from .const import DOMAIN
+from .config_flow import EvLoadBalancingConfigFlow
+from .const import CONF_DEVELOPER_MODE, DOMAIN
 from .coordinator import EvLoadBalancingCoordinator
 
 _LOGGER = logging.getLogger(__name__)
@@ -52,6 +53,76 @@ async def async_reload_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> 
     """Reload the config entry."""
     await async_unload_entry(hass, config_entry)
     await async_setup_entry(hass, config_entry)
+
+
+async def async_migrate_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> bool:
+    """Migrate old entry."""
+    _LOGGER.debug(
+        "Attempting migrating configuration from version %s.%s",
+        config_entry.version,
+        config_entry.minor_version,
+    )
+
+    class MigrateError(HomeAssistantError):
+        """Error to indicate there is was an error in version migration."""
+
+    installed_version = EvLoadBalancingConfigFlow.VERSION
+    installed_minor_version = EvLoadBalancingConfigFlow.MINOR_VERSION
+
+    new_data = {**config_entry.data}
+    new_options = {**config_entry.options}
+
+    if config_entry.version > installed_version:
+        _LOGGER.warning(
+            "Downgrading major version from %s to %s is not allowed",
+            config_entry.version,
+            installed_version,
+        )
+        return False
+
+    if (
+        config_entry.version == installed_version
+        and config_entry.minor_version > installed_minor_version
+    ):
+        _LOGGER.warning(
+            "Downgrading minor version from %s.%s to %s.%s is not allowed",
+            config_entry.version,
+            config_entry.minor_version,
+            installed_version,
+            installed_minor_version,
+        )
+        return False
+
+    def data_01_to_02(data: dict):
+        if CONF_DEVELOPER_MODE not in data:
+            data[CONF_DEVELOPER_MODE] = False
+            return data
+        return data
+
+    if config_entry.version == 0 and config_entry.minor_version == 1:
+        try:
+            # Version 0.1 to 0.2
+            new_data = data_01_to_02(new_data)
+        except MigrateError:
+            _LOGGER.warning("Error while upgrading from version 1.x to 2.1")
+            return False
+
+    _LOGGER.info(
+        "Configuration update from version %s.%s to %s.%s successful",
+        config_entry.version,
+        config_entry.minor_version,
+        installed_version,
+        installed_minor_version,
+    )
+
+    hass.config_entries.async_update_entry(
+        config_entry,
+        data=new_data,
+        options=new_options,
+        version=installed_version,
+        minor_version=installed_minor_version,
+    )
+    return True
 
 
 async def update_listener(hass: HomeAssistant, config_entry: ConfigEntry):

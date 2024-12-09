@@ -13,7 +13,7 @@ Will soon add a description how it could be extended to work with other devices 
 
 ## Install & Setup
 
-### Install integration 
+### Install integration
 
 1. Go to HACS -> Integrations
 2. Click the three dots on the top right and select `Custom Repositories`
@@ -29,16 +29,17 @@ Will soon add a description how it could be extended to work with other devices 
 
 ### Configure integration
 
-1. From your settings add new integration EV Load Balancing
-2. Select what type of device for Mains current monitor and EV Changer (for now only Slimmelezer and Easee possible)
-3. Select the specific device for each type (for Easee select the one with the device-id, not the one name "Easee EV Charger")
-    * Set the rated max current on your mains circuit (or slightly below if you want some margin)
-    * Set the time-to-live for charger setting (this will cause the charger to reset to default limit if no new setting has been received for x minutes)
-4. Pair the phases, this is needed since what the Mains and Charger device has as phase1 etc. may not be the same, "crossed wires" (by default it pairs 1-to-1 etc. but match as you want). Oder has no function, just make sure to not have any duplicates (ex. two mains phase 1, it will throw and error and you have to select them again)
-5. Submit
+1. From your settings add new integration EV Load Balancing.
+2. Select what type of device for Mains current monitor and EV Changer (for now only Slimmelezer and Easee possible).
+    * Here you can also select to enable `developer_mode`, it basically disables some checks to make development easier.
+3. Select the specific device for each type (for Easee select the one with the device-id, not the one name "Easee EV Charger").
+    * Set the rated max current on your mains circuit (or slightly below if you want some margin).
+    * Set the time-to-live for charger setting (this will cause the charger to reset to default limit if no new setting has been received for x minutes).
+4. Pair the phases, this is needed since what the Mains and Charger device has as phase1 etc. may not be the same, "crossed wires" (by default it pairs 1-to-1 etc. but match as you want). Oder has no function, just make sure to not have any duplicates (ex. two mains phase 1, it will throw and error and you have to select them again).
+5. Submit.
     * Directly after submit or restart of Home Assistant the integration may show an error, this is likely due to the delay in Easee sensor reporting, give it some seconds and it should work.
 7. Start charging your vehicle and monitor the mains consumption and limits of your charger (attributes of the `dynamic_circuit_limit` sensor) if it works for you!
 
 ## Feedback
 
-If you find an error of have some proposal for improvment, please look through the [Issues](https://github.com/dala318/ev_load_balancing/issues) and create a new if not reported before, or start a thread in the [Discussions page](https://github.com/dala318/ev_load_balancing/discussions)
+If you find an error of have some proposal for improvment, please look through the [Issues](https://github.com/dala318/ev_load_balancing/issues) and create a new if not reported before, or start a thread in the [Discussions page](https://github.com/dala318/ev_load_balancing/discussions).

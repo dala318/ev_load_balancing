@@ -6,7 +6,8 @@
                 "data": {
                     "name": "Name of balancer",
                     "mains_type": "Type of device masuring mains consumption",
-                    "charger_type": "Type of EV charging device"
+                    "charger_type": "Type of EV charging device",
+                    "developer_mode": "Enable developer mode (circumvents some checks and logic)"
                 }
             },
             "devices": {
