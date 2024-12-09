@@ -20,6 +20,7 @@ from .const import (
     CONF_CHARGER_PHASE2,
     CONF_CHARGER_PHASE3,
     CONF_CHARGER_TYPE,
+    CONF_DEVELOPER_MODE,
     CONF_DEVICES,
     CONF_MAINS_DEVICE_ID,
     CONF_MAINS_LIMIT,
@@ -77,7 +78,7 @@ class EvLoadBalancingConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """EvLoadBalancing config flow."""
 
     VERSION = 0
-    MINOR_VERSION = 1
+    MINOR_VERSION = 2
     data = {}
     options = {}
     # _reauth_entry: config_entries.ConfigEntry | None = None
@@ -105,10 +106,7 @@ class EvLoadBalancingConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         charger_types = [NAME_EASEE]
 
         if user_input is not None:
-            self.data[CONF_NAME] = user_input[CONF_NAME]
-            self.data[CONF_MAINS_TYPE] = user_input[CONF_MAINS_TYPE]
-            self.data[CONF_CHARGER_TYPE] = user_input[CONF_CHARGER_TYPE]
-
+            self.data = user_input
             return await self.async_step_devices()
 
         schema = vol.Schema(
@@ -116,6 +114,7 @@ class EvLoadBalancingConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 vol.Required(CONF_NAME): str,
                 vol.Required(CONF_MAINS_TYPE): vol.In(mains_types),
                 vol.Required(CONF_CHARGER_TYPE): vol.In(charger_types),
+                vol.Required(CONF_DEVELOPER_MODE, default=False): bool,
             }
         )
 

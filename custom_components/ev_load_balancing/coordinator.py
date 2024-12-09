@@ -21,6 +21,7 @@ from .const import (
     CONF_CHARGER_PHASE2,
     CONF_CHARGER_PHASE3,
     CONF_CHARGER_TYPE,
+    CONF_DEVELOPER_MODE,
     CONF_DEVICES,
     CONF_MAINS_DEVICE_ID,
     CONF_MAINS_LIMIT,
@@ -105,6 +106,8 @@ class EvLoadBalancingCoordinator(DataUpdateCoordinator):
             ),
             # always_update=True,
         )
+
+        self._developer_mode = config_entry.data[CONF_DEVELOPER_MODE]
 
         # Mains currents
         if CONF_MAINS_TYPE not in config_entry.data:
@@ -235,10 +238,12 @@ class EvLoadBalancingCoordinator(DataUpdateCoordinator):
         ]:
             self._last_update = None
             _LOGGER.debug("Skipping update since no charging active or pending")
-            # return
-            _LOGGER.warning(
-                "Abort call due to charging not active disabled during development"
-            )
+            if self._developer_mode:
+                _LOGGER.warning(
+                    "Abort call due to charging not active disabled during development"
+                )
+            else:
+                return
 
         new_limits = []
         for pair in self._pairs:
