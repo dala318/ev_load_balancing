@@ -10,7 +10,7 @@ from homeassistant.components.sensor import (
     SensorEntityDescription,
 )
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import STATE_UNKNOWN
+from homeassistant.const import STATE_UNKNOWN, EntityCategory
 from homeassistant.core import HomeAssistant
 
 from . import EvLoadBalancingCoordinator
@@ -32,6 +32,7 @@ async def async_setup_entry(
                 key="last_update",
                 name="Last Update",
                 device_class=SensorDeviceClass.TIMESTAMP,
+                entity_category=EntityCategory.DIAGNOSTIC,
             ),
         ),
         UpdateAgeSensor(
@@ -40,6 +41,7 @@ async def async_setup_entry(
                 key="update_age",
                 name="Update Age",
                 device_class=SensorDeviceClass.DURATION,
+                entity_category=EntityCategory.DIAGNOSTIC,
                 native_unit_of_measurement="seconds",
             ),
         ),
@@ -85,7 +87,7 @@ class LastUpdateSensor(BaseSensor):
     @property
     def native_value(self):
         """Output state."""
-        state = STATE_UNKNOWN
+        state = None
         if self._coordinator.last_update is not None:
             state = self._coordinator.last_update
         _LOGGER.debug(
@@ -101,16 +103,22 @@ class UpdateAgeSensor(BaseSensor):
 
     _attr_icon = "mdi:clock-edit-outline"
     _last_update = None
+    _last_value = 0
 
     @property
     def native_value(self):
         """Output state."""
-        state = STATE_UNKNOWN
+        state = None
         if self._coordinator.last_update is not None:
             if self._last_update is not None:
-                state = int(
+                delta = int(
                     (self._coordinator.last_update - self._last_update).total_seconds()
                 )
+                if delta != 0:
+                    state = delta
+                    self._last_value = delta
+                else:
+                    state = self._last_value
             self._last_update = self._coordinator.last_update
         _LOGGER.debug(
             'Returning state "%s" of sensor "%s"',
