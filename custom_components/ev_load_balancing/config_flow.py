@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import Any
 
@@ -10,9 +11,9 @@ import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.const import CONF_NAME
 from homeassistant.data_entry_flow import FlowResult
+from homeassistant.exceptions import ConfigEntryError
 from homeassistant.helpers import device_registry as dr, selector
 
-from .chargers.easee import ChargerEasee
 from .const import (
     CONF_CHARGER_DEVICE_ID,
     CONF_CHARGER_EXPIRES,
@@ -29,14 +30,18 @@ from .const import (
     CONF_MAINS_PHASE3,
     CONF_MAINS_TYPE,
     CONF_PHASES,
+    CONF_PHASE_AUTO_MATCHING,
     DOMAIN,
     NAME_EASEE,
     NAME_SLIMMELEZER,
 )
-from .coordinator import Phases
-from .mains.slimmelezer import MainsSlimmelezer
+from .coordinator import Phases, get_charger, get_mains
 
 _LOGGER = logging.getLogger(__name__)
+
+
+class PhaseLearningFailed(ConfigEntryError):
+    """Special error if phase learning fails."""
 
 
 # class DuplicatePhasematchingException(Exception):
@@ -140,6 +145,9 @@ class EvLoadBalancingConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             )
             self._abort_if_unique_id_configured()
 
+            if self.options[CONF_DEVICES][CONF_PHASE_AUTO_MATCHING]:
+                return self.async_step_auto_phases()
+
             return await self.async_step_phases()
 
         mains = await self._async_get_devices(self.data[CONF_MAINS_TYPE])
@@ -165,6 +173,7 @@ class EvLoadBalancingConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         unit_of_measurement="minutes",
                     )
                 ),
+                vol.Required(CONF_PHASE_AUTO_MATCHING, default=False): bool,
             }
         )
 
@@ -174,13 +183,114 @@ class EvLoadBalancingConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             errors=errors,
         )
 
+    async def async_step_auto_phases(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Handle initial user step."""
+        errors: dict[str, str] = {}
+
+        mains = get_mains(
+            self.hass,
+            None,
+            self.data,
+            self.options,
+        )
+        mains.update()
+
+        charger = get_charger(
+            self.hass,
+            None,
+            self.data,
+            self.options,
+        )
+
+        phase_matches: dict[Phases, Phases] = {
+            Phases.PHASE1: None,
+            Phases.PHASE2: None,
+            Phases.PHASE3: None,
+        }
+        for c_phase in Phases:
+            # Deactivate all phases on charger
+            await charger.async_set_limits(0.0, 0.0, 0.0)
+            asyncio.sleep(10)
+            base_values = {
+                Phases.PHASE1: mains.get_phase(Phases.PHASE1).actual_current,
+                Phases.PHASE2: mains.get_phase(Phases.PHASE2).actual_current,
+                Phases.PHASE3: mains.get_phase(Phases.PHASE3).actual_current,
+            }
+
+            # Activate one phase
+            await charger.async_set_limits(
+                (10.0 if c_phase == Phases.PHASE1 else 0.0),
+                (10.0 if c_phase == Phases.PHASE2 else 0.0),
+                (10.0 if c_phase == Phases.PHASE3 else 0.0),
+            )
+            asyncio.sleep(10)
+
+            #  Try to find one phase that has increased significantly in load
+            for attempt in range(120):
+                found = False
+                for m_phase in Phases:
+                    if (
+                        base_values[m_phase] + 6
+                        < mains.get_phase(m_phase).actual_current
+                    ):
+                        phase_matches[c_phase] = m_phase
+                        _LOGGER.debug(
+                            "Found match for charger %s in mains %s after %u attempts",
+                            c_phase.name,
+                            m_phase.name,
+                            attempt,
+                        )
+                        found = True
+
+                # Break if found or wait a second and try again
+                if found:
+                    break
+                asyncio.sleep(1)
+
+            else:
+                raise PhaseLearningFailed(
+                    f"Could not find a matching mains phase for charger phase {c_phase.name}"
+                )
+
+        if (
+            any(m is None for m in phase_matches.values())  # A phase was not detected
+            or len(set(phase_matches.values())) < 3  # Unique phases was not detected
+        ):
+            _LOGGER.warning("Failed to match phases, will continue to manual setup")
+        else:
+            _LOGGER.info("Matching found, will continue to manual step to confirm")
+            self.options[CONF_PHASES] = {
+                CONF_MAINS_PHASE1: phase_matches[Phases.PHASE1].name,
+                CONF_MAINS_PHASE2: phase_matches[Phases.PHASE2].name,
+                CONF_MAINS_PHASE3: phase_matches[Phases.PHASE3].name,
+                CONF_CHARGER_PHASE1: Phases.PHASE1.name,
+                CONF_CHARGER_PHASE2: Phases.PHASE2.name,
+                CONF_CHARGER_PHASE3: Phases.PHASE3.name,
+            }
+
+        return await self.async_step_phases()
+
     async def async_step_phases(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
         """Handle initial user step."""
         errors: dict[str, str] = {}
 
+        if CONF_PHASES not in self.options:
+            self.options[CONF_PHASES] = {
+                CONF_MAINS_PHASE1: Phases.PHASE1.name,
+                CONF_MAINS_PHASE2: Phases.PHASE2.name,
+                CONF_MAINS_PHASE3: Phases.PHASE3.name,
+                CONF_CHARGER_PHASE1: Phases.PHASE1.name,
+                CONF_CHARGER_PHASE2: Phases.PHASE2.name,
+                CONF_CHARGER_PHASE3: Phases.PHASE3.name,
+            }
+
         if user_input is not None:
+            self.options[CONF_PHASES] = user_input
+
             if (
                 user_input[CONF_MAINS_PHASE1] == user_input[CONF_MAINS_PHASE2]
                 or user_input[CONF_MAINS_PHASE2] == user_input[CONF_MAINS_PHASE3]
@@ -192,8 +302,6 @@ class EvLoadBalancingConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 errors["base"] = "duplicate_phase_matching"
 
             else:
-                self.options[CONF_PHASES] = user_input
-
                 _LOGGER.debug(
                     'Creating entry "%s" with data "%s" and options %s',
                     self.unique_id,
@@ -204,22 +312,22 @@ class EvLoadBalancingConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     title=self.data[CONF_NAME], data=self.data, options=self.options
                 )
 
-        mains = MainsSlimmelezer(
+        mains = get_mains(
             self.hass,
             None,
-            self.options[CONF_DEVICES][CONF_MAINS_DEVICE_ID],
-            0,
+            self.data,
+            self.options,
         )
         mains_phases = [
             selector.SelectOptionDict(value=p.name, label=mains.get_phase(p).name)
             for p in Phases
         ]
 
-        charger = ChargerEasee(
+        charger = get_charger(
             self.hass,
             None,
-            self.options[CONF_DEVICES][CONF_CHARGER_DEVICE_ID],
-            0,
+            self.data,
+            self.options,
         )
         charger_phases = [
             selector.SelectOptionDict(value=p.name, label=charger.get_phase(p).name)
@@ -229,7 +337,8 @@ class EvLoadBalancingConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         schema = vol.Schema(
             {
                 vol.Required(
-                    CONF_MAINS_PHASE1, default=Phases.PHASE1.name
+                    CONF_MAINS_PHASE1,
+                    default=self.options[CONF_PHASES][CONF_MAINS_PHASE1],
                 ): selector.SelectSelector(
                     selector.SelectSelectorConfig(
                         options=mains_phases,
@@ -237,7 +346,8 @@ class EvLoadBalancingConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     ),
                 ),
                 vol.Required(
-                    CONF_CHARGER_PHASE1, default=Phases.PHASE1.name
+                    CONF_CHARGER_PHASE1,
+                    default=self.options[CONF_PHASES][CONF_CHARGER_PHASE1],
                 ): selector.SelectSelector(
                     selector.SelectSelectorConfig(
                         options=charger_phases,
@@ -245,7 +355,8 @@ class EvLoadBalancingConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     ),
                 ),
                 vol.Required(
-                    CONF_MAINS_PHASE2, default=Phases.PHASE2.name
+                    CONF_MAINS_PHASE2,
+                    default=self.options[CONF_PHASES][CONF_MAINS_PHASE2],
                 ): selector.SelectSelector(
                     selector.SelectSelectorConfig(
                         options=mains_phases,
@@ -253,7 +364,8 @@ class EvLoadBalancingConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     ),
                 ),
                 vol.Required(
-                    CONF_CHARGER_PHASE2, default=Phases.PHASE2.name
+                    CONF_CHARGER_PHASE2,
+                    default=self.options[CONF_PHASES][CONF_CHARGER_PHASE2],
                 ): selector.SelectSelector(
                     selector.SelectSelectorConfig(
                         options=charger_phases,
@@ -261,7 +373,8 @@ class EvLoadBalancingConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     ),
                 ),
                 vol.Required(
-                    CONF_MAINS_PHASE3, default=Phases.PHASE3.name
+                    CONF_MAINS_PHASE3,
+                    default=self.options[CONF_PHASES][CONF_MAINS_PHASE3],
                 ): selector.SelectSelector(
                     selector.SelectSelectorConfig(
                         options=mains_phases,
@@ -269,7 +382,8 @@ class EvLoadBalancingConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     ),
                 ),
                 vol.Required(
-                    CONF_CHARGER_PHASE3, default=Phases.PHASE3.name
+                    CONF_CHARGER_PHASE3,
+                    default=self.options[CONF_PHASES][CONF_CHARGER_PHASE3],
                 ): selector.SelectSelector(
                     selector.SelectSelectorConfig(
                         options=charger_phases,
