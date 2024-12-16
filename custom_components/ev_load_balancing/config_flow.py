@@ -110,9 +110,12 @@ class EvLoadBalancingConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             self._abort_if_unique_id_configured()
 
             if self.options[CONF_DEVICES][CONF_PHASE_AUTO_MATCHING]:
-                return self.async_step_auto_phases()
-
-            return await self.async_step_phases()
+                try:
+                    return await self.async_step_auto_phases()
+                except PhaseLearningFailed:
+                    errors["base"] = "auto_phase_matching_failed"
+            else:
+                return await self.async_step_phases()
 
         mains = await self._async_get_devices(self.data[CONF_MAINS_TYPE])
         chargers = await self._async_get_devices(self.data[CONF_CHARGER_TYPE])
@@ -155,17 +158,17 @@ class EvLoadBalancingConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         mains = get_mains(
             self.hass,
-            None,
             self.data,
             self.options,
+            None,
         )
         mains.update()
 
         charger = get_charger(
             self.hass,
-            None,
             self.data,
             self.options,
+            None,
         )
 
         phase_matches: dict[Phases, Phases] = {
@@ -176,11 +179,11 @@ class EvLoadBalancingConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         for c_phase in Phases:
             # Deactivate all phases on charger
             await charger.async_set_limits(0.0, 0.0, 0.0)
-            asyncio.sleep(10)
+            await asyncio.sleep(10)
             base_values = {
-                Phases.PHASE1: mains.get_phase(Phases.PHASE1).actual_current,
-                Phases.PHASE2: mains.get_phase(Phases.PHASE2).actual_current,
-                Phases.PHASE3: mains.get_phase(Phases.PHASE3).actual_current,
+                Phases.PHASE1: mains.get_phase(Phases.PHASE1).actual_current(),
+                Phases.PHASE2: mains.get_phase(Phases.PHASE2).actual_current(),
+                Phases.PHASE3: mains.get_phase(Phases.PHASE3).actual_current(),
             }
 
             # Activate one phase
@@ -189,7 +192,7 @@ class EvLoadBalancingConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 (10.0 if c_phase == Phases.PHASE2 else 0.0),
                 (10.0 if c_phase == Phases.PHASE3 else 0.0),
             )
-            asyncio.sleep(10)
+            await asyncio.sleep(10)
 
             #  Try to find one phase that has increased significantly in load
             for attempt in range(120):
@@ -197,7 +200,7 @@ class EvLoadBalancingConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 for m_phase in Phases:
                     if (
                         base_values[m_phase] + 6
-                        < mains.get_phase(m_phase).actual_current
+                        < mains.get_phase(m_phase).actual_current()
                     ):
                         phase_matches[c_phase] = m_phase
                         _LOGGER.debug(
@@ -211,7 +214,7 @@ class EvLoadBalancingConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 # Break if found or wait a second and try again
                 if found:
                     break
-                asyncio.sleep(1)
+                await asyncio.sleep(1)
 
             else:
                 raise PhaseLearningFailed(
@@ -222,7 +225,8 @@ class EvLoadBalancingConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             any(m is None for m in phase_matches.values())  # A phase was not detected
             or len(set(phase_matches.values())) < 3  # Unique phases was not detected
         ):
-            _LOGGER.warning("Failed to match phases, will continue to manual setup")
+            # _LOGGER.warning("Failed to match phases, will continue to manual setup")
+            raise PhaseLearningFailed("Failed to match phases")
         else:
             _LOGGER.info("Matching found, will continue to manual step to confirm")
             self.options[CONF_PHASES] = {

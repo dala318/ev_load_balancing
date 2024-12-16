@@ -35,7 +35,8 @@
         "error": {
             "name_exists": "Name already exists",
             "invalid_template": "The template is invalid",
-            "duplicate_phase_matching": "Make sure to select unique pairing of phases"
+            "duplicate_phase_matching": "Make sure to select unique pairing of phases",
+            "auto_phase_matching_failed": "The automatic phase-matching failed, try again or do it manually"
         },
         "abort": {
             "already_configured": "Already configured with the same devices"
