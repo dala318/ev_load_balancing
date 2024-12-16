@@ -19,3 +19,4 @@ For every new supported device-type or integration there are some tasks to be do
 * Update the necessary steps and lists in `config_flow.py` to allow configuration of the new source/destination. (This step may require some refactoring since the variations are not known and not all steps are that general, even special device-specific steps may be required, then those should likely be imported from the device-specific file.)
 * If the framework is not sufficiently supporting the new integration or device, create a request for update and we will solve it.
 * If the config_entry is no longer backwards compatible add a migration function in [async_migrate_entry](custom_components/ev_load_balancing/__init__.py#L58) function and modify the VERSION and MINOR_VERSION accordingly in `config_flow.py`
+* _Likely a lot more steps that I have not thought of yet..._
