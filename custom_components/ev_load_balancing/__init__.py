@@ -123,8 +123,3 @@ async def async_migrate_entry(hass: HomeAssistant, config_entry: ConfigEntry) ->
         minor_version=installed_minor_version,
     )
     return True
-
-
-async def update_listener(hass: HomeAssistant, config_entry: ConfigEntry):
-    """Handle options update."""
-    hass.data[DOMAIN][config_entry.entry_id].update_listener(config_entry)

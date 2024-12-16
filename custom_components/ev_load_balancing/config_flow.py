@@ -44,41 +44,6 @@ class PhaseLearningFailed(ConfigEntryError):
     """Special error if phase learning fails."""
 
 
-# class DuplicatePhasematchingException(Exception):
-
-# @staticmethod
-# @config_entries.callback
-# def async_get_options_flow(
-#     config_entry: config_entries.ConfigEntry,
-# ) -> EvLoadBalancingOptionsFlow:
-#     """Create the options flow."""
-#     return EvLoadBalancingOptionsFlow()
-
-
-# class EvLoadBalancingOptionsFlow(config_entries.OptionsFlow):
-#     """EvLoadBalancing options flow."""
-
-#     async def async_step_init(
-#         self, user_input: dict[str, Any] | None = None
-#     ) -> FlowResult:
-#         """Manage the options."""
-#         if user_input is not None:
-#             return self.async_create_entry(data=user_input)
-
-#         schema = vol.Schema(
-#             {
-#                 vol.Required("show_things"): bool,
-#             }
-#         )
-
-#         return self.async_show_form(
-#             step_id="init",
-#             data_schema=self.add_suggested_values_to_schema(
-#                 schema, self.config_entry.options
-#             ),
-#         )
-
-
 class EvLoadBalancingConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """EvLoadBalancing config flow."""
 
@@ -86,7 +51,6 @@ class EvLoadBalancingConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     MINOR_VERSION = 2
     data = {}
     options = {}
-    # _reauth_entry: config_entries.ConfigEntry | None = None
 
     async def _async_get_devices(self, search_str: str):
         devices = {}
@@ -397,4 +361,44 @@ class EvLoadBalancingConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             step_id="phases",
             data_schema=schema,
             errors=errors,
+        )
+
+    @staticmethod
+    @config_entries.callback
+    def async_get_options_flow(
+        config_entry: config_entries.ConfigEntry,
+    ) -> EvLoadBalancingOptionsFlow:
+        """Create the options flow."""
+        return EvLoadBalancingOptionsFlow(config_entry)
+
+
+class EvLoadBalancingOptionsFlow(config_entries.OptionsFlowWithConfigEntry):
+    """EvLoadBalancing options flow."""
+
+    async def async_step_init(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Manage the options."""
+        if user_input is not None:
+            # Manually update & reload the config entry after options change.
+            raise NotImplementedError("The options-flow is not implemented.")
+            changed = self.hass.config_entries.async_update_entry(
+                self.config_entry,
+                options=user_input,
+            )
+            if changed:
+                await self.hass.config_entries.async_reload(self.config_entry.entry_id)
+            return self.async_create_entry(title="", data=user_input)
+
+        schema = vol.Schema(
+            {
+                vol.Required("show_things"): bool,
+            }
+        )
+
+        return self.async_show_form(
+            step_id="init",
+            data_schema=self.add_suggested_values_to_schema(
+                schema, self.config_entry.options
+            ),
         )
