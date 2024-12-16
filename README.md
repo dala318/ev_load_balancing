@@ -9,7 +9,7 @@ A Home Assistant custom integration that brings functionality to dynamically lim
 
 For a first version it will only support the combination [Slimmelezer](https://www.zuidwijk.com/product/slimmelezer/) as mains current sensor and [Easee](https://github.com/nordicopen/easee_hass) charging robot.
 
-Will soon add a description how it could be extended to work with other devices integrations in Home Assistant as well.
+For instructions how you could add a new device type or integration support, see the (DEVELOPER_GUIDE.md)
 
 ## Install & Setup
 
