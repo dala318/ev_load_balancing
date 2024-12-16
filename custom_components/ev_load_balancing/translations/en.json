@@ -40,5 +40,18 @@
         "abort": {
             "already_configured": "Already configured with the same devices"
           }
+    },
+    "options": {
+        "step": {
+            "init": {
+                "description": "Select what to modify",
+                "data": {
+                    "show_things": "Do something (not implemented for now)"
+                }
+            }
+        },
+        "error": {
+            "not_implemented": "The options-flow handling is not implemented"
+        }
     }
 }

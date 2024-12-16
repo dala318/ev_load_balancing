@@ -29,8 +29,8 @@ from .const import (
     CONF_MAINS_PHASE2,
     CONF_MAINS_PHASE3,
     CONF_MAINS_TYPE,
-    CONF_PHASES,
     CONF_PHASE_AUTO_MATCHING,
+    CONF_PHASES,
     DOMAIN,
     NAME_EASEE,
     NAME_SLIMMELEZER,
@@ -96,7 +96,7 @@ class EvLoadBalancingConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_devices(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
-        """Handle initial user step."""
+        """Handle device selection step."""
         errors: dict[str, str] = {}
 
         if user_input is not None:
@@ -150,8 +150,8 @@ class EvLoadBalancingConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_auto_phases(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
-        """Handle initial user step."""
-        errors: dict[str, str] = {}
+        """Handle auto-phase matching."""
+        # errors: dict[str, str] = {}
 
         mains = get_mains(
             self.hass,
@@ -239,7 +239,7 @@ class EvLoadBalancingConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_phases(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
-        """Handle initial user step."""
+        """Handle phase matching step."""
         errors: dict[str, str] = {}
 
         if CONF_PHASES not in self.options:
@@ -379,16 +379,19 @@ class EvLoadBalancingOptionsFlow(config_entries.OptionsFlowWithConfigEntry):
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
         """Manage the options."""
+        errors: dict[str, str] = {}
+
         if user_input is not None:
             # Manually update & reload the config entry after options change.
-            raise NotImplementedError("The options-flow is not implemented.")
-            changed = self.hass.config_entries.async_update_entry(
-                self.config_entry,
-                options=user_input,
-            )
-            if changed:
-                await self.hass.config_entries.async_reload(self.config_entry.entry_id)
-            return self.async_create_entry(title="", data=user_input)
+            errors["base"] = "not_implemented"
+
+            # changed = self.hass.config_entries.async_update_entry(
+            #     self.config_entry,
+            #     options=user_input,
+            # )
+            # if changed:
+            #     await self.hass.config_entries.async_reload(self.config_entry.entry_id)
+            # return self.async_create_entry(title="", data=user_input)
 
         schema = vol.Schema(
             {
@@ -396,9 +399,10 @@ class EvLoadBalancingOptionsFlow(config_entries.OptionsFlowWithConfigEntry):
             }
         )
 
-        return self.async_show_form(
-            step_id="init",
-            data_schema=self.add_suggested_values_to_schema(
-                schema, self.config_entry.options
-            ),
-        )
+        return self.async_show_form(step_id="init", data_schema=schema, errors=errors)
+        # return self.async_show_form(
+        #     step_id="init",
+        #     data_schema=self.add_suggested_values_to_schema(
+        #         schema, self.config_entry.options
+        #     ),
+        # )
