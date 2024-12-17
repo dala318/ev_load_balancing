@@ -84,26 +84,21 @@ class EvLoadBalancingCoordinator(DataUpdateCoordinator):
             _LOGGER,
             name=config_entry.data.get(CONF_NAME),
             setup_method=self._async_setup_method,
-            # update_interval=timedelta(seconds=20),
             update_method=self._async_update_method,
             request_refresh_debouncer=Debouncer(
                 hass,
                 _LOGGER,
                 cooldown=1,
                 immediate=False,
-                # function=self.async_refresh,
             ),
-            # always_update=True,
         )
 
         self._developer_mode = config_entry.data[CONF_DEVELOPER_MODE]
 
-        # # Mains currents
         self._mains = get_mains(
             hass, config_entry.data, config_entry.options, self.async_request_refresh
         )
 
-        # Charger
         self._charger = get_charger(
             hass, config_entry.data, config_entry.options, self.async_request_refresh
         )

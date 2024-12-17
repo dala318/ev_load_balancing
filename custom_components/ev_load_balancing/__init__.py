@@ -123,9 +123,7 @@ async def async_migrate_entry(hass: HomeAssistant, config_entry: ConfigEntry) ->
 
     if config_entry.version == 0 and config_entry.minor_version == 1:
         try:
-            # Version 0.1 to 0.2
             new_data = data_01_to_02(new_data)
-            # Version 0.2 to 0.2
             new_options = options_02_to_03(new_options)
         except MigrateError:
             _LOGGER.warning("Error while upgrading configuration version")
@@ -133,7 +131,6 @@ async def async_migrate_entry(hass: HomeAssistant, config_entry: ConfigEntry) ->
 
     if config_entry.version == 0 and config_entry.minor_version == 2:
         try:
-            # Version 0.2 to 0.2
             new_options = options_02_to_03(new_options)
         except MigrateError:
             _LOGGER.warning("Error while upgrading configuration version")
