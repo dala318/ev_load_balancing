@@ -22,6 +22,12 @@
                 "data": {
                     "charger_device_id": "Device that cntrolls EV charging",
                     "charger_expires": "Charger limit expires after, if no update",
+                    "charger_phase1": "Charger phase 1 actual limit template",
+                    "charger_phase2": "Charger phase 2 actual limit template",
+                    "charger_phase3": "Charger phase 3 actual limit template",
+                    "charger_limit": "Charger overall limit template",
+                    "charger_active": "Charging active, shall render a boolean state",
+                    "charger_command": "Charger command to set limits, variables phase1, phase2 and phase3 are avaialble",
                     "phase_auto_matching": "Try to match Charger and Mains phases (can take minutes and requires car charging to be active)"
                 }
             },
