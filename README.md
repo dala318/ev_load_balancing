@@ -26,6 +26,7 @@ For instructions how you could add a new device type or integration support, see
 * You need a [Slimmelezer](https://www.zuidwijk.com/product/slimmelezer/) installed and configured as a ESPHome device
 * You need an [Easee](https://github.com/nordicopen/easee_hass) charger robot installed
   * By default some sensors are disabled on your charger, make sure to activate the `dynamic_circuit_limit` and `status` sensors and wait until you see them with values.
+* Alternatively there is some support to interact with any source or target via "templates". This is very untested and likely requires some insight into the code to get working for now.
 
 ### Configure integration
 

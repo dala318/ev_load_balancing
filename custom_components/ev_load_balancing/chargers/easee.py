@@ -1,12 +1,16 @@
 """Handling Easee Charger."""
 
 import logging
+from typing import Any
+
+import voluptuous as vol
 
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import selector
 from homeassistant.helpers.event import async_track_state_change_event
 from homeassistant.helpers.template import device_entities
 
-from ..const import Phases
+from ..const import CONF_CHARGER_EXPIRES, CONF_DEVICE_ID, Phases
 from ..helpers.entity_value import get_sensor_entity_attribute_value
 from . import Charger, ChargerPhase, ChargingState
 
@@ -21,6 +25,7 @@ class ChargerPhaseEasee(ChargerPhase):
         self._hass = hass
         self._entity = entity_id
         self._attribute = attribute
+
         self._value = None
 
     def update(self) -> None:
@@ -48,31 +53,28 @@ class ChargerEasee(Charger):
     _state_change_listeners = []
 
     def __init__(
-        self, hass: HomeAssistant, update_callback, device_id: str, ttl: int
+        self, hass: HomeAssistant, update_callback, options: dict[str, str]
     ) -> None:
         """Initilalize Slimmelezer extractor."""
         super().__init__(hass, update_callback)
-        self._id = device_id
-        self._ttl = ttl
+        self._id = options[CONF_DEVICE_ID]
+        self._ttl = options[CONF_CHARGER_EXPIRES]
 
-        entities = device_entities(hass, device_id)
+        entities = device_entities(hass, self._id)
+        used_entities = []
 
         self._ent_status = [e for e in entities if e.endswith("_status")][0]
-        self._state_change_listeners.append(
-            async_track_state_change_event(
-                self._hass,
-                [self._ent_status],
-                self._async_input_changed,
-            )
-        )
+        used_entities.append(self._ent_status)
 
         self._ent_circuit_limit = [
             e for e in entities if e.endswith("_dynamic_circuit_limit")
         ][0]
+        used_entities.append(self._ent_circuit_limit)
+
         self._state_change_listeners.append(
             async_track_state_change_event(
                 self._hass,
-                [self._ent_circuit_limit],
+                used_entities,
                 self._async_input_changed,
             )
         )
@@ -152,3 +154,25 @@ class ChargerEasee(Charger):
     def device_id(self) -> str:
         """Device id."""
         return self._id
+
+    @staticmethod
+    def get_schema(selections: dict[str, Any]) -> vol.Schema:
+        """Device config schema."""
+        return vol.Schema(
+            {
+                vol.Required(CONF_DEVICE_ID): vol.In(selections[CONF_DEVICE_ID]),
+                vol.Required(CONF_CHARGER_EXPIRES, default=10): selector.NumberSelector(
+                    selector.NumberSelectorConfig(
+                        min=1,
+                        max=30,
+                        step=1,
+                        unit_of_measurement="minutes",
+                    )
+                ),
+            }
+        )
+
+    @staticmethod
+    def validate_user_input(hass: HomeAssistant, user_input: dict[str, Any]) -> bool:
+        """Validate the result from config flow step."""
+        return True
