@@ -17,7 +17,7 @@ For instructions how you could add a new device type or integration support, see
 
 1. Go to HACS -> Integrations
 2. Click the three dots on the top right and select `Custom Repositories`
-3. Enter https://github.com/dala318/ev_load_balancing` as repository, select the category `Integration` and click Add
+3. Enter `https://github.com/dala318/ev_load_balancing` as repository, select the category `Integration` and click Add
 4. A new custom integration shows up for installation (EV load Balancing) - install it
 5. Restart Home Assistant
 

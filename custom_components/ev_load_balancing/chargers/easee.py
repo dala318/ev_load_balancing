@@ -92,7 +92,7 @@ class ChargerEasee(Charger):
     ) -> bool:
         """Set charger limits."""
         _LOGGER.debug(
-            "Setting limits: phase 1 %f, phase 2 %f, phase 3 %f", phase1, phase2, phase3
+            "Setting limits: phase-1 %f, phase-2 %f, phase-3 %f", phase1, phase2, phase3
         )
         domain = "easee"
         service = "set_circuit_dynamic_limit"

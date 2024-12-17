@@ -16,7 +16,8 @@
                     "mains_device_id": "Device that measures mains conumption",
                     "mains_limit": "Rated limit of main fuse",
                     "charger_device_id": "Device that cntrolls EV charging",
-                    "charger_expires": "Charger limit expires after, if no update"
+                    "charger_expires": "Charger limit expires after, if no update",
+                    "phase_auto_matching": "Try to match Charger and Mains phases (can take minutes and requires car charging to be active)"
                 }
             },
             "phases": {
@@ -34,10 +35,24 @@
         "error": {
             "name_exists": "Name already exists",
             "invalid_template": "The template is invalid",
-            "duplicate_phase_matching": "Make sure to select unique pairing of phases"
+            "duplicate_phase_matching": "Make sure to select unique pairing of phases",
+            "auto_phase_matching_failed": "The automatic phase-matching failed, try again or do it manually"
         },
         "abort": {
             "already_configured": "Already configured with the same devices"
           }
+    },
+    "options": {
+        "step": {
+            "init": {
+                "description": "Select what to modify",
+                "data": {
+                    "show_things": "Do something (not implemented for now)"
+                }
+            }
+        },
+        "error": {
+            "not_implemented": "The options-flow handling is not implemented"
+        }
     }
 }

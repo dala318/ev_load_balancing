@@ -40,6 +40,48 @@ from .mains.slimmelezer import MainsSlimmelezer
 _LOGGER = logging.getLogger(__name__)
 
 
+def get_mains(
+    hass: HomeAssistant,
+    data,
+    options,
+    update_callback,
+) -> Mains:
+    """Get the mains object from config entry."""
+    if CONF_MAINS_TYPE not in data:
+        raise ConfigEntryError("No mains type defined in config")
+    if data[CONF_MAINS_TYPE] == NAME_SLIMMELEZER:
+        return MainsSlimmelezer(
+            hass,
+            update_callback,
+            options[CONF_DEVICES][CONF_MAINS_DEVICE_ID],
+            options[CONF_DEVICES][CONF_MAINS_LIMIT] or 0.0,
+        )
+    raise ConfigEntryError(
+        f"The provided mains type ({data[CONF_MAINS_TYPE]}) is not supported"
+    )
+
+
+def get_charger(
+    hass: HomeAssistant,
+    data,
+    options,
+    update_callback,
+) -> Charger:
+    """Get the charger object from config entry."""
+    if CONF_CHARGER_TYPE not in data:
+        raise ConfigEntryError("No charger type defined in config")
+    if data[CONF_CHARGER_TYPE] == NAME_EASEE:
+        return ChargerEasee(
+            hass,
+            update_callback,
+            options[CONF_DEVICES][CONF_CHARGER_DEVICE_ID],
+            options[CONF_DEVICES][CONF_CHARGER_EXPIRES],
+        )
+    raise ConfigEntryError(
+        f"The provided charger type ({data[CONF_CHARGER_TYPE]}) is not supported"
+    )
+
+
 class PhasePair:
     """Data analyzer per one phase."""
 
@@ -109,35 +151,41 @@ class EvLoadBalancingCoordinator(DataUpdateCoordinator):
 
         self._developer_mode = config_entry.data[CONF_DEVELOPER_MODE]
 
-        # Mains currents
-        if CONF_MAINS_TYPE not in config_entry.data:
-            raise ConfigEntryError("No mains type defined in config")
-        if config_entry.data[CONF_MAINS_TYPE] == NAME_SLIMMELEZER:
-            self._mains = MainsSlimmelezer(
-                hass,
-                self.async_request_refresh,
-                config_entry.options[CONF_DEVICES][CONF_MAINS_DEVICE_ID],
-                config_entry.options[CONF_DEVICES][CONF_MAINS_LIMIT],
-            )
-        else:
-            raise ConfigEntryError(
-                f"The provided mains type ({config_entry.data[CONF_MAINS_TYPE]}) is not supported"
-            )
+        # # Mains currents
+        self._mains = get_mains(
+            hass, config_entry.data, config_entry.options, self.async_request_refresh
+        )
+        # if CONF_MAINS_TYPE not in config_entry.data:
+        #     raise ConfigEntryError("No mains type defined in config")
+        # if config_entry.data[CONF_MAINS_TYPE] == NAME_SLIMMELEZER:
+        #     self._mains = MainsSlimmelezer(
+        #         hass,
+        #         self.async_request_refresh,
+        #         config_entry.options[CONF_DEVICES][CONF_MAINS_DEVICE_ID],
+        #         config_entry.options[CONF_DEVICES][CONF_MAINS_LIMIT],
+        #     )
+        # else:
+        #     raise ConfigEntryError(
+        #         f"The provided mains type ({config_entry.data[CONF_MAINS_TYPE]}) is not supported"
+        #     )
 
         # Charger
-        if CONF_CHARGER_TYPE not in config_entry.data:
-            raise ConfigEntryError("No charger type defined in config")
-        if config_entry.data[CONF_CHARGER_TYPE] == NAME_EASEE:
-            self._charger = ChargerEasee(
-                hass,
-                self.async_request_refresh,
-                config_entry.options[CONF_DEVICES][CONF_CHARGER_DEVICE_ID],
-                config_entry.options[CONF_DEVICES][CONF_CHARGER_EXPIRES],
-            )
-        else:
-            raise ConfigEntryError(
-                f"The provided charger type ({config_entry.data[CONF_CHARGER_TYPE]}) is not supported"
-            )
+        self._charger = get_charger(
+            hass, config_entry.data, config_entry.options, self.async_request_refresh
+        )
+        # if CONF_CHARGER_TYPE not in config_entry.data:
+        #     raise ConfigEntryError("No charger type defined in config")
+        # if config_entry.data[CONF_CHARGER_TYPE] == NAME_EASEE:
+        #     self._charger = ChargerEasee(
+        #         hass,
+        #         self.async_request_refresh,
+        #         config_entry.options[CONF_DEVICES][CONF_CHARGER_DEVICE_ID],
+        #         config_entry.options[CONF_DEVICES][CONF_CHARGER_EXPIRES],
+        #     )
+        # else:
+        #     raise ConfigEntryError(
+        #         f"The provided charger type ({config_entry.data[CONF_CHARGER_TYPE]}) is not supported"
+        #     )
 
         self._mapping = {
             Phases[config_entry.options[CONF_PHASES][CONF_MAINS_PHASE1]]: Phases[

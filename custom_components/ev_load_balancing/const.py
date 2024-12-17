@@ -17,6 +17,7 @@ CONF_DEVICES = "devices"
 CONF_PHASES = "phases"
 
 CONF_DEVELOPER_MODE = "developer_mode"
+CONF_PHASE_AUTO_MATCHING = "phase_auto_matching"
 
 CONF_MAINS_TYPE = "mains_type"
 CONF_MAINS_DEVICE_ID = "mains_device_id"
