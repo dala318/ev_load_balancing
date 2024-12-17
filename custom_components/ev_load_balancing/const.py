@@ -33,5 +33,8 @@ CONF_CHARGER_PHASE1 = "charger_phase1"
 CONF_CHARGER_PHASE2 = "charger_phase2"
 CONF_CHARGER_PHASE3 = "charger_phase3"
 
+NAME_SENSOR_ENTITIES = "sensor_entities"
 NAME_SLIMMELEZER = "slimmelezer"
+
 NAME_EASEE = "easee"
+NAME_TEMPLATE = "template"

@@ -33,7 +33,9 @@ from .const import (
     CONF_PHASES,
     DOMAIN,
     NAME_EASEE,
+    NAME_SENSOR_ENTITIES,
     NAME_SLIMMELEZER,
+    NAME_TEMPLATE,
 )
 from .coordinator import Phases, get_charger, get_mains
 
@@ -71,8 +73,8 @@ class EvLoadBalancingConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         """Handle initial user step."""
         errors: dict[str, str] = {}
 
-        mains_types = [NAME_SLIMMELEZER]
-        charger_types = [NAME_EASEE]
+        mains_types = [NAME_SLIMMELEZER, NAME_SENSOR_ENTITIES]
+        charger_types = [NAME_EASEE, NAME_TEMPLATE]
 
         if user_input is not None:
             self.data = user_input
