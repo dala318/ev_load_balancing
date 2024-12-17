@@ -9,7 +9,15 @@ from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant, HomeAssistantError
 
 from .config_flow import EvLoadBalancingConfigFlow
-from .const import CONF_DEVELOPER_MODE, DOMAIN
+from .const import (
+    CONF_CHARGER,
+    CONF_CHARGER_EXPIRES,
+    CONF_DEVELOPER_MODE,
+    CONF_DEVICE_ID,
+    CONF_MAINS,
+    CONF_MAINS_LIMIT,
+    DOMAIN,
+)
 from .coordinator import EvLoadBalancingCoordinator
 
 _LOGGER = logging.getLogger(__name__)
@@ -96,15 +104,39 @@ async def async_migrate_entry(hass: HomeAssistant, config_entry: ConfigEntry) ->
     def data_01_to_02(data: dict):
         if CONF_DEVELOPER_MODE not in data:
             data[CONF_DEVELOPER_MODE] = False
-            return data
         return data
+
+    def options_02_to_03(options: dict):
+        CONF_DEVICES = "devices"
+        CONF_MAINS_DEVICE_ID = "mains_device_id"
+        CONF_CHARGER_DEVICE_ID = "charger_device_id"
+        devices = options.pop(CONF_DEVICES)
+        options[CONF_MAINS] = {
+            CONF_DEVICE_ID: devices[CONF_MAINS_DEVICE_ID],
+            CONF_MAINS_LIMIT: devices[CONF_MAINS_LIMIT],
+        }
+        options[CONF_CHARGER] = {
+            CONF_DEVICE_ID: devices[CONF_CHARGER_DEVICE_ID],
+            CONF_CHARGER_EXPIRES: devices[CONF_CHARGER_EXPIRES],
+        }
+        return options
 
     if config_entry.version == 0 and config_entry.minor_version == 1:
         try:
             # Version 0.1 to 0.2
             new_data = data_01_to_02(new_data)
+            # Version 0.2 to 0.2
+            new_options = options_02_to_03(new_options)
         except MigrateError:
-            _LOGGER.warning("Error while upgrading from version 1.x to 2.1")
+            _LOGGER.warning("Error while upgrading configuration version")
+            return False
+
+    if config_entry.version == 0 and config_entry.minor_version == 2:
+        try:
+            # Version 0.2 to 0.2
+            new_options = options_02_to_03(new_options)
+        except MigrateError:
+            _LOGGER.warning("Error while upgrading configuration version")
             return False
 
     _LOGGER.info(

@@ -10,11 +10,16 @@
                     "developer_mode": "Enable developer mode (circumvents some checks and logic)"
                 }
             },
-            "devices": {
-                "description": "Select ther individual devices and settings",
+            "mains": {
+                "description": "Select individual mains device and settings",
                 "data": {
-                    "mains_device_id": "Device that measures mains conumption",
-                    "mains_limit": "Rated limit of main fuse",
+                    "device_id": "Device that measures mains consumption",
+                    "mains_limit": "Rated limit of main fuse"
+                }
+            },
+            "charger": {
+                "description": "Select individual charger device and settings",
+                "data": {
                     "charger_device_id": "Device that cntrolls EV charging",
                     "charger_expires": "Charger limit expires after, if no update",
                     "phase_auto_matching": "Try to match Charger and Mains phases (can take minutes and requires car charging to be active)"

@@ -10,20 +10,24 @@ import voluptuous as vol
 
 from homeassistant import config_entries
 from homeassistant.const import CONF_NAME
+from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResult
 from homeassistant.exceptions import ConfigEntryError
 from homeassistant.helpers import device_registry as dr, selector
 
+from .chargers import Charger
+from .chargers.easee import ChargerEasee
+from .chargers.template import ChargerTemplate
 from .const import (
-    CONF_CHARGER_DEVICE_ID,
+    CONF_CHARGER,
     CONF_CHARGER_EXPIRES,
     CONF_CHARGER_PHASE1,
     CONF_CHARGER_PHASE2,
     CONF_CHARGER_PHASE3,
     CONF_CHARGER_TYPE,
     CONF_DEVELOPER_MODE,
-    CONF_DEVICES,
-    CONF_MAINS_DEVICE_ID,
+    CONF_DEVICE_ID,
+    CONF_MAINS,
     CONF_MAINS_LIMIT,
     CONF_MAINS_PHASE1,
     CONF_MAINS_PHASE2,
@@ -36,10 +40,69 @@ from .const import (
     NAME_SENSOR_ENTITIES,
     NAME_SLIMMELEZER,
     NAME_TEMPLATE,
+    Phases,
 )
-from .coordinator import Phases, get_charger, get_mains
+from .mains import Mains
+from .mains.sensor_entities import MainsSensorEntities
+from .mains.slimmelezer import MainsSlimmelezer
 
 _LOGGER = logging.getLogger(__name__)
+
+
+def get_charger(
+    hass: HomeAssistant,
+    data,
+    options,
+    update_callback,
+) -> Charger:
+    """Get the charger object from config entry."""
+    if CONF_CHARGER_TYPE not in data:
+        raise ConfigEntryError("No charger type defined in config")
+    if data[CONF_CHARGER_TYPE] == NAME_EASEE:
+        return ChargerEasee(
+            hass,
+            update_callback,
+            options[CONF_CHARGER][CONF_DEVICE_ID],
+            options[CONF_CHARGER][CONF_CHARGER_EXPIRES],
+        )
+    if data[CONF_CHARGER_TYPE] == NAME_TEMPLATE:
+        return ChargerTemplate(
+            hass,
+            update_callback,
+            options[CONF_CHARGER][CONF_DEVICE_ID],
+            options[CONF_CHARGER][CONF_CHARGER_EXPIRES],
+        )
+    raise ConfigEntryError(
+        f"The provided charger type ({data[CONF_CHARGER_TYPE]}) is not supported"
+    )
+
+
+def get_mains(
+    hass: HomeAssistant,
+    data,
+    options,
+    update_callback,
+) -> Mains:
+    """Get the mains object from config entry."""
+    if CONF_MAINS_TYPE not in data:
+        raise ConfigEntryError("No mains type defined in config")
+    if data[CONF_MAINS_TYPE] == NAME_SLIMMELEZER:
+        return MainsSlimmelezer(
+            hass,
+            update_callback,
+            options[CONF_MAINS][CONF_DEVICE_ID],
+            options[CONF_MAINS][CONF_MAINS_LIMIT] or 0.0,
+        )
+    if data[CONF_MAINS_TYPE] == NAME_SENSOR_ENTITIES:
+        return MainsSensorEntities(
+            hass,
+            update_callback,
+            options[CONF_MAINS][CONF_DEVICE_ID],
+            options[CONF_MAINS][CONF_MAINS_LIMIT] or 0.0,
+        )
+    raise ConfigEntryError(
+        f"The provided mains type ({data[CONF_MAINS_TYPE]}) is not supported"
+    )
 
 
 class PhaseLearningFailed(ConfigEntryError):
@@ -50,7 +113,7 @@ class EvLoadBalancingConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """EvLoadBalancing config flow."""
 
     VERSION = 0
-    MINOR_VERSION = 2
+    MINOR_VERSION = 3
     data = {}
     options = {}
 
@@ -78,7 +141,7 @@ class EvLoadBalancingConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         if user_input is not None:
             self.data = user_input
-            return await self.async_step_devices()
+            return await self.async_step_mains()
 
         schema = vol.Schema(
             {
@@ -95,36 +158,27 @@ class EvLoadBalancingConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             errors=errors,
         )
 
-    async def async_step_devices(
+    # async def async_step_picker(
+    #     self, user_input: dict[str, Any] | None = None
+    # ) -> FlowResult:
+    #     pass
+
+    async def async_step_mains(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
         """Handle device selection step."""
         errors: dict[str, str] = {}
 
         if user_input is not None:
-            self.options[CONF_DEVICES] = user_input
+            self.options[CONF_MAINS] = user_input
 
-            await self.async_set_unique_id(
-                self.options[CONF_DEVICES][CONF_MAINS_DEVICE_ID]
-                + "_"
-                + self.options[CONF_DEVICES][CONF_CHARGER_DEVICE_ID]
-            )
-            self._abort_if_unique_id_configured()
-
-            if self.options[CONF_DEVICES][CONF_PHASE_AUTO_MATCHING]:
-                try:
-                    return await self.async_step_auto_phases()
-                except PhaseLearningFailed:
-                    errors["base"] = "auto_phase_matching_failed"
-            else:
-                return await self.async_step_phases()
+            return await self.async_step_charger()
 
         mains = await self._async_get_devices(self.data[CONF_MAINS_TYPE])
-        chargers = await self._async_get_devices(self.data[CONF_CHARGER_TYPE])
 
         schema = vol.Schema(
             {
-                vol.Required(CONF_MAINS_DEVICE_ID): vol.In(mains),
+                vol.Required(CONF_DEVICE_ID): vol.In(mains),
                 vol.Required(CONF_MAINS_LIMIT, default=20): selector.NumberSelector(
                     selector.NumberSelectorConfig(
                         min=6,
@@ -133,7 +187,44 @@ class EvLoadBalancingConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         unit_of_measurement="ampere",
                     )
                 ),
-                vol.Required(CONF_CHARGER_DEVICE_ID): vol.In(chargers),
+            }
+        )
+
+        return self.async_show_form(
+            step_id="mains",
+            data_schema=schema,
+            errors=errors,
+        )
+
+    async def async_step_charger(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Handle device selection step."""
+        errors: dict[str, str] = {}
+
+        if user_input is not None:
+            self.options[CONF_CHARGER] = user_input
+
+            await self.async_set_unique_id(
+                self.options[CONF_MAINS][CONF_DEVICE_ID]
+                + "_"
+                + self.options[CONF_CHARGER][CONF_DEVICE_ID]
+            )
+            self._abort_if_unique_id_configured()
+
+            if self.options[CONF_CHARGER][CONF_PHASE_AUTO_MATCHING]:
+                try:
+                    return await self.async_step_auto_phases()
+                except PhaseLearningFailed:
+                    errors["base"] = "auto_phase_matching_failed"
+            else:
+                return await self.async_step_phases()
+
+        chargers = await self._async_get_devices(self.data[CONF_CHARGER_TYPE])
+
+        schema = vol.Schema(
+            {
+                vol.Required(CONF_DEVICE_ID): vol.In(chargers),
                 vol.Required(CONF_CHARGER_EXPIRES, default=10): selector.NumberSelector(
                     selector.NumberSelectorConfig(
                         min=1,
@@ -147,7 +238,7 @@ class EvLoadBalancingConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         )
 
         return self.async_show_form(
-            step_id="devices",
+            step_id="charger",
             data_schema=schema,
             errors=errors,
         )
@@ -284,9 +375,9 @@ class EvLoadBalancingConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         mains = get_mains(
             self.hass,
-            None,
             self.data,
             self.options,
+            None,
         )
         mains_phases = [
             selector.SelectOptionDict(value=p.name, label=mains.get_phase(p).name)
@@ -295,9 +386,9 @@ class EvLoadBalancingConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         charger = get_charger(
             self.hass,
-            None,
             self.data,
             self.options,
+            None,
         )
         charger_phases = [
             selector.SelectOptionDict(value=p.name, label=charger.get_phase(p).name)
