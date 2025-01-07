@@ -20,7 +20,6 @@ from .chargers.easee import ChargerEasee
 from .chargers.template import ChargerTemplate
 from .const import (
     CONF_CHARGER,
-    CONF_CHARGER_EXPIRES,
     CONF_CHARGER_PHASE1,
     CONF_CHARGER_PHASE2,
     CONF_CHARGER_PHASE3,
@@ -28,7 +27,6 @@ from .const import (
     CONF_DEVELOPER_MODE,
     CONF_DEVICE_ID,
     CONF_MAINS,
-    # CONF_MAINS_LIMIT,
     CONF_MAINS_PHASE1,
     CONF_MAINS_PHASE2,
     CONF_MAINS_PHASE3,
@@ -73,18 +71,6 @@ def get_charger(
             update_callback,
             options[CONF_CHARGER],
         )
-    # if data[CONF_CHARGER_TYPE] == NAME_EASEE:
-    #     return ChargerEasee(
-    #         hass,
-    #         update_callback,
-    #         options[CONF_CHARGER],
-    #     )
-    # if data[CONF_CHARGER_TYPE] == NAME_TEMPLATE:
-    #     return ChargerTemplate(
-    #         hass,
-    #         update_callback,
-    #         options[CONF_CHARGER],
-    #     )
     raise ConfigEntryError(
         f"The provided charger type ({data[CONF_CHARGER_TYPE]}) is not supported"
     )
@@ -106,18 +92,6 @@ def get_mains(
             update_callback,
             options[CONF_MAINS],
         )
-    # if data[CONF_MAINS_TYPE] == NAME_SLIMMELEZER:
-    #     return MainsSlimmelezer(
-    #         hass,
-    #         update_callback,
-    #         options[CONF_MAINS],
-    #     )
-    # if data[CONF_MAINS_TYPE] == NAME_TEMPLATE:
-    #     return MainsTemplate(
-    #         hass,
-    #         update_callback,
-    #         options[CONF_MAINS],
-    #     )
     raise ConfigEntryError(
         f"The provided mains type ({data[CONF_MAINS_TYPE]}) is not supported"
     )
@@ -188,26 +162,11 @@ class EvLoadBalancingConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             if mains_class.validate_user_input(self.hass, user_input):
                 self.options[CONF_MAINS] = user_input
                 return await self.async_step_charger()
-            else:
-                errors["base"] = "Invalid_input"
+            errors["base"] = "Invalid_input"
 
         mains = await self._async_get_devices(self.data[CONF_MAINS_TYPE])
 
         schema = mains_class.get_schema({CONF_DEVICE_ID: mains})
-
-        # schema = vol.Schema(
-        #     {
-        #         vol.Required(CONF_DEVICE_ID): vol.In(mains),
-        #         vol.Required(CONF_MAINS_LIMIT, default=20): selector.NumberSelector(
-        #             selector.NumberSelectorConfig(
-        #                 min=6,
-        #                 max=80,
-        #                 step=1,
-        #                 unit_of_measurement="ampere",
-        #             )
-        #         ),
-        #     }
-        # )
 
         return self.async_show_form(
             step_id="mains",
@@ -251,20 +210,6 @@ class EvLoadBalancingConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 vol.Required(CONF_PHASE_AUTO_MATCHING, default=False): bool,
             }
         )
-        # schema = vol.Schema(
-        #     {
-        #         vol.Required(CONF_DEVICE_ID): vol.In(chargers),
-        #         vol.Required(CONF_CHARGER_EXPIRES, default=10): selector.NumberSelector(
-        #             selector.NumberSelectorConfig(
-        #                 min=1,
-        #                 max=30,
-        #                 step=1,
-        #                 unit_of_measurement="minutes",
-        #             )
-        #         ),
-        #         vol.Required(CONF_PHASE_AUTO_MATCHING, default=False): bool,
-        #     }
-        # )
 
         return self.async_show_form(
             step_id="charger",
@@ -349,16 +294,16 @@ class EvLoadBalancingConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         ):
             # _LOGGER.warning("Failed to match phases, will continue to manual setup")
             raise PhaseLearningFailed("Failed to match phases")
-        else:
-            _LOGGER.info("Matching found, will continue to manual step to confirm")
-            self.options[CONF_PHASES] = {
-                CONF_MAINS_PHASE1: phase_matches[Phases.PHASE1].name,
-                CONF_MAINS_PHASE2: phase_matches[Phases.PHASE2].name,
-                CONF_MAINS_PHASE3: phase_matches[Phases.PHASE3].name,
-                CONF_CHARGER_PHASE1: Phases.PHASE1.name,
-                CONF_CHARGER_PHASE2: Phases.PHASE2.name,
-                CONF_CHARGER_PHASE3: Phases.PHASE3.name,
-            }
+
+        _LOGGER.info("Matching found, will continue to manual step to confirm")
+        self.options[CONF_PHASES] = {
+            CONF_MAINS_PHASE1: phase_matches[Phases.PHASE1].name,
+            CONF_MAINS_PHASE2: phase_matches[Phases.PHASE2].name,
+            CONF_MAINS_PHASE3: phase_matches[Phases.PHASE3].name,
+            CONF_CHARGER_PHASE1: Phases.PHASE1.name,
+            CONF_CHARGER_PHASE2: Phases.PHASE2.name,
+            CONF_CHARGER_PHASE3: Phases.PHASE3.name,
+        }
 
         return await self.async_step_phases()
 
