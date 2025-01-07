@@ -1,45 +1,53 @@
-"""Handling Slimmelezer mains currents input."""
+"""Handling Sensor Entities mains currents input."""
 
 from datetime import UTC, datetime, timedelta
 import logging
+import re
 import statistics
 from typing import Any
 
 import voluptuous as vol
 
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import TemplateError
 from homeassistant.helpers import selector
 from homeassistant.helpers.event import async_track_state_change_event
-from homeassistant.helpers.template import device_entities
+from homeassistant.helpers.template import Template
 
-from ..const import CONF_DEVICE_ID, CONF_MAINS_LIMIT, Phases
-from ..helpers.entity_value import get_sensor_entity_value
+from ..const import (
+    CONF_MAINS_LIMIT,
+    CONF_MAINS_PHASE1,
+    CONF_MAINS_PHASE2,
+    CONF_MAINS_PHASE3,
+    Phases,
+)
 from . import Mains, MainsPhase
 
 _LOGGER = logging.getLogger(__name__)
 
 
-class MainsPhaseSlimmelezer(MainsPhase):
+class MainsPhaseTemplate(MainsPhase):
     """A data class for a mains phase."""
 
     _stddev_min_num = 10
     _stddev_max_age = timedelta(minutes=2)
 
-    def __init__(self, hass: HomeAssistant, entity_id: str) -> None:
+    def __init__(self, hass: HomeAssistant, template: str, name: str) -> None:
         """Initialize object."""
         self._hass = hass
-        self._entity = entity_id
+        self._template = template
+        self._name = name
+
         self._value = None
         self._history_values = {}
 
     def update(self) -> None:
         """Update measurements."""
         now = datetime.now(UTC)
-        self._value = get_sensor_entity_value(
-            self._hass,
-            _LOGGER,
-            self._entity,
-        )
+        self._value = Template(self._template, self._hass).async_render() or None
+
+        if not isinstance(self._value, float):
+            _LOGGER.warning("Template did not return a numeric value")
 
         if self._value is None:
             _LOGGER.debug("Skipping history since None value")
@@ -75,44 +83,45 @@ class MainsPhaseSlimmelezer(MainsPhase):
     @property
     def name(self) -> str:
         """Get friendly name of phase."""
-        return self._entity
+        return self._name
 
 
-class MainsSlimmelezer(Mains):
-    """Slimmelezer mains extractor."""
+class MainsTemplate(Mains):
+    """Template mains extractor."""
 
     _state_change_listeners = []
 
     def __init__(
         self, hass: HomeAssistant, update_callback, options: dict[str, str]
     ) -> None:
-        """Initialize Slimmelezer extractor."""
+        """Initialize Template extractor."""
         super().__init__(hass, update_callback)
-        self._id = options[CONF_DEVICE_ID]
         self._mains_limit = options[CONF_MAINS_LIMIT]
 
-        entities = device_entities(hass, self._id)
-        used_entities = []
+        # used_entities = []
 
-        entity_phase1 = [e for e in entities if "_current" in e and e.endswith("1")][0]
-        self._phase1 = MainsPhaseSlimmelezer(self._hass, entity_phase1)
-        used_entities.append(entity_phase1)
-
-        entity_phase2 = [e for e in entities if "_current" in e and e.endswith("2")][0]
-        self._phase2 = MainsPhaseSlimmelezer(self._hass, entity_phase2)
-        used_entities.append(entity_phase2)
-
-        entity_phase3 = [e for e in entities if "_current" in e and e.endswith("3")][0]
-        self._phase3 = MainsPhaseSlimmelezer(self._hass, entity_phase3)
-        used_entities.append(entity_phase3)
-
-        self._state_change_listeners.append(
-            async_track_state_change_event(
-                self._hass,
-                used_entities,
-                self._async_input_changed,
-            )
+        self._phase1 = MainsPhaseTemplate(
+            self._hass, options[CONF_MAINS_PHASE1], "Phase 1"
         )
+        # used_entities.append(entity_phase1)
+
+        self._phase2 = MainsPhaseTemplate(
+            self._hass, options[CONF_MAINS_PHASE2], "Phase 2"
+        )
+        # used_entities.append(entity_phase2)
+
+        self._phase3 = MainsPhaseTemplate(
+            self._hass, options[CONF_MAINS_PHASE3], "Phase 3"
+        )
+        # used_entities.append(entity_phase3)
+
+        # self._state_change_listeners.append(
+        #     async_track_state_change_event(
+        #         self._hass,
+        #         used_entities,
+        #         self._async_input_changed,
+        #     )
+        # )
 
     def get_phase(self, phase: Phases) -> MainsPhase:
         """Return phase X data."""
@@ -142,14 +151,16 @@ class MainsSlimmelezer(Mains):
     @property
     def device_id(self) -> str:
         """Device id."""
-        return self._id
+        return "template_mains"
 
     @staticmethod
     def get_schema(selections: dict[str, Any]) -> vol.Schema:
         """Device config schema."""
         return vol.Schema(
             {
-                vol.Required(CONF_DEVICE_ID): vol.In(selections[CONF_DEVICE_ID]),
+                vol.Required(CONF_MAINS_PHASE1): str,
+                vol.Required(CONF_MAINS_PHASE2): str,
+                vol.Required(CONF_MAINS_PHASE3): str,
                 vol.Required(CONF_MAINS_LIMIT, default=20): selector.NumberSelector(
                     selector.NumberSelectorConfig(
                         min=6,
@@ -164,4 +175,28 @@ class MainsSlimmelezer(Mains):
     @staticmethod
     def validate_user_input(hass: HomeAssistant, user_input: dict[str, Any]) -> bool:
         """Validate the result from config flow step."""
-        return True
+        validation_pass = True
+
+        for template_key in (
+            CONF_MAINS_PHASE1,
+            CONF_MAINS_PHASE2,
+            CONF_MAINS_PHASE3,
+        ):
+            _LOGGER.debug(
+                "Attempting to validate %s with template %s",
+                template_key,
+                user_input[template_key],
+            )
+            # Lets try to remove the most common mistakes.
+            user_input[template_key] = re.sub(r"\s{2,}", "", user_input[template_key])
+            try:
+                ut = Template(user_input[template_key], hass).async_render()
+                _LOGGER.debug("Template returned value %s", ut)
+                if not isinstance(ut, float):
+                    _LOGGER.warning("Template did not return a numeric value")
+                    validation_pass = False
+            except TemplateError as e:
+                _LOGGER.error(e)
+                validation_pass = False
+
+        return validation_pass

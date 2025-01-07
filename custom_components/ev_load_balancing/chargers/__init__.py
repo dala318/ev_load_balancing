@@ -2,6 +2,9 @@
 
 from abc import ABC, abstractmethod
 from enum import Enum
+from typing import Any
+
+import voluptuous as vol
 
 from homeassistant.core import HomeAssistant
 
@@ -48,11 +51,11 @@ class Charger(ABC):
 
     @abstractmethod
     def update(self) -> None:
-        """Update measuremetns."""
+        """Update measurements."""
 
     @abstractmethod
     def cleanup(self) -> None:
-        """Cleanup event listners etc."""
+        """Cleanup event listeners etc."""
 
     @property
     @abstractmethod
@@ -71,6 +74,16 @@ class Charger(ABC):
     @abstractmethod
     def device_id(self) -> str:
         """Device id."""
+
+    @staticmethod
+    @abstractmethod
+    def get_schema(selections: dict[str, Any]) -> vol.Schema:
+        """Device config schema."""
+
+    @staticmethod
+    @abstractmethod
+    def validate_user_input(hass: HomeAssistant, user_input: dict[str, Any]) -> bool:
+        """Validate the result from config flow step."""
 
     async def _async_input_changed(self, event):
         """Input entity change callback from state change event."""
