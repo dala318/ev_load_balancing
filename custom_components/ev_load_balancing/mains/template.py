@@ -42,7 +42,7 @@ class MainsPhaseTemplate(MainsPhase):
         self._history_values = {}
 
     def update(self) -> None:
-        """Update measuremetns."""
+        """Update measurements."""
         now = datetime.now(UTC)
         self._value = Template(self._template, self._hass).async_render() or None
 
@@ -94,7 +94,7 @@ class MainsTemplate(Mains):
     def __init__(
         self, hass: HomeAssistant, update_callback, options: dict[str, str]
     ) -> None:
-        """Initilalize Template extractor."""
+        """Initialize Template extractor."""
         super().__init__(hass, update_callback)
         self._mains_limit = options[CONF_MAINS_LIMIT]
 
@@ -138,15 +138,15 @@ class MainsTemplate(Mains):
         return self._mains_limit
 
     def update(self) -> None:
-        """Update measuremetns."""
+        """Update measurements."""
         self._phase1.update()
         self._phase2.update()
         self._phase3.update()
 
     def cleanup(self):
         """Cleanup by removing event listeners."""
-        # for listner in self._state_change_listeners:
-        #     listner()
+        # for listener in self._state_change_listeners:
+        #     listener()
 
     @property
     def device_id(self) -> str:

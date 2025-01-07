@@ -51,11 +51,11 @@ class Charger(ABC):
 
     @abstractmethod
     def update(self) -> None:
-        """Update measuremetns."""
+        """Update measurements."""
 
     @abstractmethod
     def cleanup(self) -> None:
-        """Cleanup event listners etc."""
+        """Cleanup event listeners etc."""
 
     @property
     @abstractmethod

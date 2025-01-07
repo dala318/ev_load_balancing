@@ -37,7 +37,7 @@ class ChargerPhaseTemplate(ChargerPhase):
         self._value = None
 
     def update(self) -> None:
-        """Update measuremetns."""
+        """Update measurements."""
         self._value = Template(self._template, self._hass).async_render() or None
 
         if not isinstance(self._value, float):
@@ -61,7 +61,7 @@ class ChargerTemplate(Charger):
     def __init__(
         self, hass: HomeAssistant, update_callback, options: dict[str, str]
     ) -> None:
-        """Initilalize Slimmelezer extractor."""
+        """Initialize Slimmelezer extractor."""
         super().__init__(hass, update_callback)
 
         # used_entities = []
@@ -105,15 +105,15 @@ class ChargerTemplate(Charger):
         return True
 
     def update(self) -> None:
-        """Update measuremetns."""
+        """Update measurements."""
         self._phase1.update()
         self._phase2.update()
         self._phase3.update()
 
     def cleanup(self):
         """Cleanup by removing event listeners."""
-        # for listner in self._state_change_listeners:
-        #     listner()
+        # for listener in self._state_change_listeners:
+        #     listener()
 
     @property
     def charging_state(self) -> ChargingState:
@@ -167,14 +167,6 @@ class ChargerTemplate(Charger):
                 vol.Required(CONF_CHARGER_ACTIVE): str,
                 vol.Required(CONF_CHARGER_LIMIT): str,
                 vol.Required(CONF_CHARGER_COMMAND): str,
-                # vol.Required(CONF_CHARGER_LIMIT, default=20): selector.NumberSelector(
-                #     selector.NumberSelectorConfig(
-                #         min=6,
-                #         max=32,
-                #         step=1,
-                #         unit_of_measurement="ampere",
-                #     )
-                # ),
             }
         )
 

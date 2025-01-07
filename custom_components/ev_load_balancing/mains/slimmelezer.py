@@ -19,23 +19,6 @@ from . import Mains, MainsPhase
 _LOGGER = logging.getLogger(__name__)
 
 
-# def get_slimmelezer_schema(devices) -> vol.Schema:
-#     """Device config schema."""
-#     return vol.Schema(
-#         {
-#             vol.Required(CONF_DEVICE_ID): vol.In(devices),
-#             vol.Required(CONF_MAINS_LIMIT, default=20): selector.NumberSelector(
-#                 selector.NumberSelectorConfig(
-#                     min=6,
-#                     max=80,
-#                     step=1,
-#                     unit_of_measurement="ampere",
-#                 )
-#             ),
-#         }
-#     )
-
-
 class MainsPhaseSlimmelezer(MainsPhase):
     """A data class for a mains phase."""
 
@@ -50,7 +33,7 @@ class MainsPhaseSlimmelezer(MainsPhase):
         self._history_values = {}
 
     def update(self) -> None:
-        """Update measuremetns."""
+        """Update measurements."""
         now = datetime.now(UTC)
         self._value = get_sensor_entity_value(
             self._hass,
@@ -103,7 +86,7 @@ class MainsSlimmelezer(Mains):
     def __init__(
         self, hass: HomeAssistant, update_callback, options: dict[str, str]
     ) -> None:
-        """Initilalize Slimmelezer extractor."""
+        """Initialize Slimmelezer extractor."""
         super().__init__(hass, update_callback)
         self._id = options[CONF_DEVICE_ID]
         self._mains_limit = options[CONF_MAINS_LIMIT]
@@ -146,15 +129,15 @@ class MainsSlimmelezer(Mains):
         return self._mains_limit
 
     def update(self) -> None:
-        """Update measuremetns."""
+        """Update measurements."""
         self._phase1.update()
         self._phase2.update()
         self._phase3.update()
 
     def cleanup(self):
         """Cleanup by removing event listeners."""
-        # for listner in self._state_change_listeners:
-        #     listner()
+        # for listener in self._state_change_listeners:
+        #     listener()
 
     @property
     def device_id(self) -> str:

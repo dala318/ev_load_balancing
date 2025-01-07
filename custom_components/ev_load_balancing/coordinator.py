@@ -46,7 +46,7 @@ class PhasePair:
         self._charger_limit = charger_limit
 
     def get_new_limit(self) -> float | None:
-        """Calculate and return the propsed new limit for phase."""
+        """Calculate and return the proposed new limit for phase."""
         main_actual = self._mains_phase.actual_current()
         main_stddev = self._mains_phase.stddev_current()
         charger_set_limit = self._charger_phase.current_limit()

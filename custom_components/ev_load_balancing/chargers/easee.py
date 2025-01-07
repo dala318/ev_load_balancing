@@ -29,7 +29,7 @@ class ChargerPhaseEasee(ChargerPhase):
         self._value = None
 
     def update(self) -> None:
-        """Update measuremetns."""
+        """Update measurements."""
         self._value = get_sensor_entity_attribute_value(
             self._hass,
             _LOGGER,
@@ -55,7 +55,7 @@ class ChargerEasee(Charger):
     def __init__(
         self, hass: HomeAssistant, update_callback, options: dict[str, str]
     ) -> None:
-        """Initilalize Slimmelezer extractor."""
+        """Initialize Slimmelezer extractor."""
         super().__init__(hass, update_callback)
         self._id = options[CONF_DEVICE_ID]
         self._ttl = options[CONF_CHARGER_EXPIRES]
@@ -110,15 +110,15 @@ class ChargerEasee(Charger):
         return True
 
     def update(self) -> None:
-        """Update measuremetns."""
+        """Update measurements."""
         self._phase1.update()
         self._phase2.update()
         self._phase3.update()
 
     def cleanup(self):
         """Cleanup by removing event listeners."""
-        # for listner in self._state_change_listeners:
-        #     listner()
+        # for listener in self._state_change_listeners:
+        #     listener()
 
     @property
     def charging_state(self) -> ChargingState:
