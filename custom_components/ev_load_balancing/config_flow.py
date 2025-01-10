@@ -54,6 +54,19 @@ _MAINS_CLASS_FROM_NAME = {
     NAME_TEMPLATE: MainsTemplate,
 }
 
+USER_SCHEMA = vol.Schema(
+    {
+        vol.Required(CONF_NAME): str,
+        vol.Required(CONF_MAINS_TYPE): vol.In(
+            _MAINS_CLASS_FROM_NAME.keys(),
+        ),
+        vol.Required(CONF_CHARGER_TYPE): vol.In(
+            _CHARGER_CLASS_FROM_NAME.keys(),
+        ),
+        vol.Required(CONF_DEVELOPER_MODE, default=False): bool,
+    }
+)
+
 
 def get_charger(
     hass: HomeAssistant,
@@ -132,22 +145,9 @@ class EvLoadBalancingConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             self.data = user_input
             return await self.async_step_mains()
 
-        schema = vol.Schema(
-            {
-                vol.Required(CONF_NAME): str,
-                vol.Required(CONF_MAINS_TYPE): vol.In(
-                    _MAINS_CLASS_FROM_NAME.keys(),
-                ),
-                vol.Required(CONF_CHARGER_TYPE): vol.In(
-                    _CHARGER_CLASS_FROM_NAME.keys(),
-                ),
-                vol.Required(CONF_DEVELOPER_MODE, default=False): bool,
-            }
-        )
-
         return self.async_show_form(
             step_id="user",
-            data_schema=schema,
+            data_schema=USER_SCHEMA,
             errors=errors,
         )
 
