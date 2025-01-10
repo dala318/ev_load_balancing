@@ -3,6 +3,7 @@
 from unittest import mock
 
 from custom_components.ev_load_balancing import EvLoadBalancingCoordinator
+from custom_components.ev_load_balancing.const import DOMAIN
 
 # from pytest_homeassistant_custom_component.async_mock import patch
 # from pytest_homeassistant_custom_component.common import (
@@ -11,14 +12,13 @@ from custom_components.ev_load_balancing import EvLoadBalancingCoordinator
 #     mock_integration,
 #     mock_platform,
 # )
-from custom_components.ev_load_balancing.const import DOMAIN
 import pytest
 
 from homeassistant import config_entries
 from homeassistant.const import ATTR_NAME, ATTR_UNIT_OF_MEASUREMENT
 
 # from homeassistant.components import sensor
-# from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 NAME = "My balancer"
@@ -66,7 +66,7 @@ CONF_ENTRY = config_entries.ConfigEntry(
 
 
 @pytest.mark.asyncio
-async def test_coordinator_init(hass):
+async def test_coordinator_init(hass: HomeAssistant) -> None:
     """Test the coordinator initialization."""
 
     coordinator = EvLoadBalancingCoordinator(hass, CONF_ENTRY)
