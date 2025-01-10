@@ -1,4 +1,6 @@
 {
   "name": "ev_load_balancing",
-  "render_readme": true
+  "render_readme": true,
+  "zip_release": true,
+  "filename": "ev_load_balancing.zip"
 }
