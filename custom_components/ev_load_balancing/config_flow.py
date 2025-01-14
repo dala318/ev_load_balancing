@@ -456,13 +456,20 @@ class EvLoadBalancingOptionsFlow(config_entries.OptionsFlowWithConfigEntry):
             # Manually update & reload the config entry after options change.
             errors["base"] = "not_implemented"
 
-            # changed = self.hass.config_entries.async_update_entry(
+            # options = {**self.config_entry.options}
+            # options[CONF_PHASES] = user_input
+
+            # changed = await self.hass.config_entries.async_update_entry(
             #     self.config_entry,
-            #     options=user_input,
+            #     options=options,
             # )
             # if changed:
             #     await self.hass.config_entries.async_reload(self.config_entry.entry_id)
-            # return self.async_create_entry(title="", data=user_input)
+            # return self.async_create_entry(
+            #     title=self.config_entry.data[CONF_NAME],
+            #     data=self.config_entry.data,
+            #     options=self.options,
+            # )
 
         schema = vol.Schema(
             {
@@ -471,9 +478,3 @@ class EvLoadBalancingOptionsFlow(config_entries.OptionsFlowWithConfigEntry):
         )
 
         return self.async_show_form(step_id="init", data_schema=schema, errors=errors)
-        # return self.async_show_form(
-        #     step_id="init",
-        #     data_schema=self.add_suggested_values_to_schema(
-        #         schema, self.config_entry.options
-        #     ),
-        # )
